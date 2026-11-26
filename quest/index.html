@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Romania: Unlocked — The Quest</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ROMANIA: UNLOCKED — THE QUEST (mini version, ~6 minutes, no phones)
+   VOICE  arcade game show, fast and loud
+   IDEA   a game cartridge "loading Romania": HUD, levels, a boss, a victory screen
+   COLOUR near-black, neon yellow lead, flag blue/yellow/red as accents
+   TYPE   Chakra Petch only
+   LAYOUT 1920x1080 stage scaled to the screen; every section has its own composition */
+:root { --ink:#08080a; --ink2:#141519; --ink3:#1f2026; --line:#2e2f37; --y:#ffe600; --fb:#0b3bff; --fy:#fcd116; --fr:#e8112d; --w:#f5f4ef; --mute:#8d8f9b; --font:'Chakra Petch','Segoe UI',system-ui,sans-serif; }
+* { box-sizing:border-box; min-width:0; }
+html,body { margin:0; height:100%; background:#000; color:var(--w); font-family:var(--font); overflow:hidden; }
+button,input { font-family:var(--font); }
+#stage { position:absolute; left:50%; top:50%; width:1920px; height:1080px; transform-origin:center; overflow:hidden; background:var(--ink); }
+#screen { position:absolute; inset:0; }
+.abs { position:absolute; }
+@keyframes up { from { opacity:0; transform:translateY(50px); } }
+@keyframes fade { from { opacity:0; } }
+@keyframes blink { 50% { opacity:.2; } }
+@keyframes pulse { 50% { transform:scale(1.06); } }
+.in { animation:up .7s cubic-bezier(.2,.8,.2,1) both; }
+.d1 { animation-delay:.12s; } .d2 { animation-delay:.24s; } .d3 { animation-delay:.36s; } .d4 { animation-delay:.5s; }
+
+/* photos with fallback */
+.ph { position:absolute; inset:0; overflow:hidden; background:var(--m-dim) 0 0/84px 84px, linear-gradient(135deg,#20212a,#0b0c10); }
+.ph img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; transition:opacity .6s, transform 1.4s cubic-bezier(.2,.8,.2,1), filter .9s; }
+.ph img.ok { opacity:1; }
+.ph .fbm { position:absolute; left:50%; top:46%; width:240px; height:240px; transform:translate(-50%,-50%); background:var(--m-romb) center/contain no-repeat; }
+
+/* HUD */
+#hud { position:absolute; left:0; right:0; top:0; height:86px; z-index:40; display:flex; align-items:center; gap:28px; padding:0 34px; background:linear-gradient(var(--ink) 70%, rgba(8,8,10,0)); pointer-events:none; }
+#hud.off { display:none; }
+.h-title { font-size:22px; font-weight:700; letter-spacing:.04em; white-space:nowrap; }
+.h-title b { color:var(--y); }
+.prog { flex:1; display:flex; gap:6px; }
+.seg { flex:1; position:relative; padding-top:10px; }
+.seg i { position:absolute; left:0; right:0; top:0; height:8px; background:var(--ink3); }
+.seg i::after { content:''; position:absolute; inset:0; width:var(--p,0%); background:var(--y); transition:width .5s; }
+.seg span { font-size:14px; font-weight:600; color:var(--mute); white-space:nowrap; }
+.seg small { font-size:13px; color:#55575f; margin-left:6px; display:none; }
+.seg.cur small { display:inline; color:var(--mute); }
+.seg.cur span { color:var(--y); } .seg.done span { color:var(--w); }
+.clock { font-size:30px; font-weight:700; color:var(--y); width:96px; text-align:right; }
+.clock.late { color:var(--fr); }
+.scores { display:flex; gap:10px; }
+.sc { min-width:150px; padding:6px 12px; border-left:6px solid var(--tc); background:rgba(255,255,255,.06); display:flex; justify-content:space-between; gap:10px; align-items:baseline; }
+.sc span { font-size:15px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px; }
+.sc b { font-size:26px; color:var(--tc); }
+.sc.act { background:rgba(255,255,255,.16); }
+
+/* countdown */
+.cd { position:absolute; width:170px; height:170px; cursor:pointer; z-index:20; }
+.cd svg { width:100%; height:100%; transform:rotate(-90deg); }
+.cd circle { fill:none; stroke-width:10; }
+.cd .bg { stroke:rgba(255,255,255,.12); } .cd .fg { stroke:var(--y); stroke-dasharray:100; stroke-dashoffset:calc(100 - var(--f,1)*100); transition:stroke-dashoffset .1s linear; }
+.cd b { position:absolute; inset:0; display:grid; place-items:center; font-size:74px; font-weight:700; }
+.cd small { position:absolute; left:-40px; right:-40px; top:100%; margin-top:8px; text-align:center; font-size:16px; color:var(--mute); }
+.cd.run small { visibility:hidden; }
+.cd.low .fg { stroke:var(--fr); } .cd.low { animation:pulse .5s infinite; }
+.cd.end b { color:var(--fr); }
+.rv .cd { display:none; }
+
+/* award strip (appears after reveals) */
+.award { position:absolute; right:40px; bottom:40px; z-index:25; display:flex; gap:10px; align-items:center; animation:up .5s .3s both; }
+.award > span { font-size:20px; font-weight:700; color:var(--mute); margin-right:6px; }
+.award button { border:3px solid var(--tc); background:rgba(8,8,10,.85); color:var(--w); font-size:20px; font-weight:700; padding:12px 16px; cursor:pointer; }
+.award button:hover { background:var(--tc); color:var(--ink); }
+.award button b { color:var(--tc); margin-left:6px; } .award button:hover b { color:var(--ink); }
+
+/* splash between sections */
+#splash { position:absolute; inset:0; z-index:60; pointer-events:none; display:none; }
+#splash.on { display:block; animation:splash 1.6s cubic-bezier(.7,0,.3,1) both; }
+@keyframes splash { 0% { clip-path:polygon(0 0,0 0,0 100%,0 100%); } 25%,72% { clip-path:polygon(0 0,100% 0,100% 100%,0 100%); } 100% { clip-path:polygon(100% 0,100% 0,100% 100%,100% 100%); } }
+#splash .sp-bg { position:absolute; inset:0; background:var(--y); }
+#splash .sp-band { position:absolute; left:0; right:0; top:120px; height:84px; background:var(--m-romb-k) 0 center/84px 84px repeat-x; }
+#splash .sp-band.b2 { top:auto; bottom:120px; }
+#splash .sp-t { position:absolute; left:140px; top:330px; color:var(--ink); }
+#splash .sp-t small { display:block; font-size:44px; font-weight:700; }
+#splash .sp-t b { display:block; font-size:190px; line-height:.9; font-weight:700; }
+#splash .sp-t i { font-style:normal; font-size:40px; font-weight:600; }
+
+/* fx */
+#fx { position:absolute; inset:0; pointer-events:none; z-index:70; }
+.pop { position:absolute; left:50%; top:36%; transform:translate(-50%,-50%); text-align:center; animation:pop 1.6s cubic-bezier(.2,.8,.2,1) both; }
+.pop b { display:block; font-size:110px; font-weight:700; color:var(--tc); text-shadow:6px 6px 0 var(--ink); }
+.pop span { font-size:32px; font-weight:700; background:var(--ink); padding:4px 16px; }
+@keyframes pop { 0% { opacity:0; transform:translate(-50%,-20%) scale(.5); } 15% { opacity:1; transform:translate(-50%,-50%) scale(1.1); } 70% { opacity:1; transform:translate(-50%,-62%); } 100% { opacity:0; transform:translate(-50%,-130%); } }
+.flash { position:absolute; inset:0; display:grid; place-items:center; animation:fl 1.2s both; background:rgba(8,8,10,.5); }
+.flash span { font-size:200px; font-weight:700; color:var(--fr); text-shadow:10px 10px 0 var(--ink); }
+@keyframes fl { 0% { opacity:0; } 12%,70% { opacity:1; } 100% { opacity:0; } }
+canvas.conf { position:absolute; inset:0; width:100%; height:100%; }
+
+/* ===== BOOT ===== */
+.boot .ph img { filter:grayscale(1) contrast(1.3) brightness(.5); }
+.boot .ph::after { content:''; position:absolute; inset:0; background:linear-gradient(90deg, rgba(8,8,10,.97) 0%, rgba(8,8,10,.6) 55%, rgba(11,59,255,.45) 100%); }
+.flagstrip { position:absolute; left:0; top:0; bottom:0; width:36px; background:linear-gradient(var(--fb) 0 33.3%, var(--fy) 33.3% 66.6%, var(--fr) 66.6%); }
+.bt-main { position:absolute; left:150px; top:130px; right:150px; }
+.bt-main h1 { margin:0; font-size:236px; line-height:.8; font-weight:700; position:relative; }
+.bt-main h1.y { color:var(--y); }
+.glitch::before, .glitch::after { content:attr(data-t); position:absolute; inset:0; opacity:0; pointer-events:none; }
+.glitch::before { color:var(--fr); animation:g1 4.5s infinite steps(1); } .glitch::after { color:var(--fb); animation:g2 4.5s infinite steps(1); }
+@keyframes g1 { 0%,90%,100% { opacity:0; } 91% { opacity:.9; transform:translate(-9px,3px); clip-path:inset(12% 0 52% 0); } 93% { opacity:.9; transform:translate(7px,-2px); clip-path:inset(60% 0 6% 0); } 95% { opacity:0; } }
+@keyframes g2 { 0%,91%,100% { opacity:0; } 92% { opacity:.9; transform:translate(9px,0); clip-path:inset(38% 0 32% 0); } 94% { opacity:.9; transform:translate(-6px,4px); clip-path:inset(4% 0 76% 0); } 96% { opacity:0; } }
+.bt-tag { display:inline-block; margin-top:38px; background:var(--y); color:var(--ink); font-size:46px; font-weight:700; padding:6px 22px; }
+.bt-hook { margin-top:34px; font-size:52px; font-weight:600; line-height:1.1; min-height:60px; white-space:nowrap; }
+.bt-hook i { font-style:normal; color:var(--y); animation:blink 1s steps(1) infinite; }
+.bt-start { margin-top:30px; background:none; border:5px solid var(--y); color:var(--y); font-size:52px; font-weight:700; padding:18px 54px; cursor:pointer; box-shadow:10px 10px 0 var(--fr); }
+.bt-start:hover { background:var(--y); color:var(--ink); }
+.bt-start span { animation:blink 1.1s steps(1) infinite; }
+.bt-log { position:absolute; right:90px; top:600px; width:420px; font-size:22px; line-height:1.7; color:#5f616c; }
+.bt-log div { animation:fade .3s both; } .bt-log b { color:#00e08a; }
+.bt-tools { position:absolute; right:90px; bottom:50px; display:flex; gap:12px; }
+.tool { background:rgba(8,8,10,.6); border:2px solid #3a3b44; color:var(--mute); font-size:20px; padding:10px 18px; cursor:pointer; }
+.tool:hover { color:var(--w); border-color:var(--w); }
+.load { position:absolute; inset:0; background:var(--ink); z-index:10; display:none; align-items:center; justify-content:center; }
+.load.on { display:flex; }
+.load-in { width:1200px; }
+.load-n { font-size:250px; font-weight:700; line-height:1; color:var(--y); }
+.load-bar { height:46px; margin:28px 0; border:4px solid var(--w); }
+.load-bar i { display:block; height:100%; width:0; background:var(--m-romb-k) 0 center/38px 38px repeat-x, var(--y); }
+.load-l { font-size:38px; font-weight:600; letter-spacing:.08em; }
+
+/* ===== TEAMS ===== */
+.teams { position:absolute; inset:0; display:flex; }
+.tcol { flex:1; position:relative; background:var(--tc); color:var(--ink); padding:190px 50px 0; display:flex; flex-direction:column; }
+.tcol::before { content:''; position:absolute; left:0; right:0; bottom:0; height:340px; background:var(--m-romb-k) 0 0/90px 90px; opacity:.16; }
+.tcol em { font-style:normal; font-size:200px; font-weight:700; line-height:.8; opacity:.25; }
+.tcol input { width:100%; background:transparent; border:0; border-bottom:5px solid var(--ink); color:var(--ink); font-size:50px; font-weight:700; padding:10px 0; outline:none; text-transform:uppercase; }
+.tcol input:focus { background:rgba(255,255,255,.25); }
+.tcol small { margin-top:12px; font-size:22px; font-weight:600; opacity:.7; }
+.rules { position:absolute; left:0; right:0; bottom:0; background:var(--ink); padding:40px 60px 46px; z-index:2; }
+.rules p { margin:0; font-size:44px; font-weight:600; line-height:1.2; }
+.rules p b { color:var(--y); }
+.rules .hint { margin-top:14px; font-size:22px; color:var(--mute); }
+
+/* ===== MYTH SCANNER ===== */
+.myth { position:absolute; inset:0; background:radial-gradient(ellipse at 50% 45%, #10204a 0%, var(--ink) 65%); overflow:hidden; }
+.myth::before { content:''; position:absolute; inset:0; background:repeating-linear-gradient(0deg, rgba(255,255,255,.035) 0 2px, transparent 2px 6px); }
+.myth .ph { opacity:.22; } .myth .ph img { filter:grayscale(1) blur(2px); }
+.myth.rv .ph { opacity:.45; } .myth.rv .ph img { filter:none; }
+.scanline { position:absolute; left:0; right:0; height:6px; background:var(--y); box-shadow:0 0 40px var(--y); opacity:.7; animation:scan 2.4s linear infinite; z-index:3; }
+@keyframes scan { from { top:90px; } to { top:1080px; } }
+.myth.rv .scanline { display:none; }
+.mk { position:absolute; left:110px; top:130px; font-size:28px; font-weight:700; color:var(--y); letter-spacing:.06em; z-index:4; }
+.mk i { font-style:normal; color:var(--fr); animation:blink 1s steps(1) infinite; margin-right:10px; }
+.mq { position:absolute; left:110px; right:340px; top:200px; font-size:104px; line-height:1.02; font-weight:700; z-index:4; text-wrap:balance; transition:font-size .4s, top .4s; }
+.myth.rv .mq { font-size:62px; top:190px; color:#c9cbd6; }
+.brackets { position:absolute; left:0; right:0; bottom:0; height:250px; display:flex; z-index:4; }
+.br { flex:1; display:flex; align-items:center; justify-content:center; gap:30px; font-size:130px; font-weight:700; transition:opacity .4s, background .4s; }
+.br em { font-style:normal; font-size:34px; color:var(--ink); background:var(--w); padding:4px 14px; }
+.br.t { background:linear-gradient(transparent, rgba(11,59,255,.45)); border-top:8px solid var(--fb); }
+.br.f { background:linear-gradient(transparent, rgba(232,17,45,.4)); border-top:8px solid var(--fr); }
+.br.ok.t { background:var(--fb); } .br.ok.f { background:var(--fr); }
+.br.no { opacity:.18; }
+.myth .cd { right:110px; top:150px; }
+.verdict { position:absolute; left:110px; top:350px; z-index:5; font-size:96px; font-weight:700; padding:4px 26px; transform:rotate(-3deg); animation:slam .45s cubic-bezier(.3,1.6,.5,1) both; }
+.verdict.v-t { background:var(--y); color:var(--ink); } .verdict.v-f { background:var(--fr); color:var(--w); }
+@keyframes slam { from { transform:rotate(-3deg) scale(2.6); opacity:0; } }
+.mfact { position:absolute; left:110px; right:420px; top:530px; z-index:5; font-size:42px; line-height:1.25; font-weight:500; animation:up .6s .3s both; }
+.mfact b { color:var(--y); }
+
+/* ===== FOOD LOOT ===== */
+.food { position:absolute; inset:0; overflow:hidden; background:var(--ink); }
+.food .ph img { transform:scale(1.9); transform-origin:var(--fo,50% 50%); }
+.food.rv .ph img { transform:scale(1); }
+.food .shade { position:absolute; inset:0; background:radial-gradient(ellipse at 50% 50%, transparent 30%, rgba(8,8,10,.85) 85%); transition:opacity .8s; }
+.food.rv .shade { background:linear-gradient(90deg, rgba(8,8,10,.88) 0%, rgba(8,8,10,.2) 50%, rgba(8,8,10,.75) 100%); }
+.fq { position:absolute; left:0; right:0; bottom:90px; text-align:center; font-size:150px; line-height:.9; font-weight:700; color:transparent; -webkit-text-stroke:4px var(--y); text-shadow:none; }
+.fq b { color:var(--y); -webkit-text-stroke:0; }
+.fnum { position:absolute; left:80px; top:120px; font-size:28px; font-weight:700; background:var(--y); color:var(--ink); padding:6px 16px; }
+.food .cd { right:80px; top:120px; }
+.fname { position:absolute; left:80px; bottom:110px; font-size:220px; line-height:.85; font-weight:700; color:var(--y); text-shadow:8px 8px 0 var(--ink); animation:nameIn .8s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes nameIn { from { opacity:0; transform:translateX(-140px); letter-spacing:.2em; } }
+.finfo { position:absolute; right:70px; top:150px; width:620px; display:flex; flex-direction:column; gap:26px; }
+.finfo div { border-left:8px solid var(--y); padding:6px 0 6px 22px; animation:up .6s both; }
+.finfo div:nth-child(2) { animation-delay:.15s; border-color:var(--fb); } .finfo div:nth-child(3) { animation-delay:.3s; border-color:var(--fr); }
+.finfo small { display:block; font-size:20px; font-weight:700; color:var(--mute); letter-spacing:.06em; }
+.finfo p { margin:4px 0 0; font-size:34px; line-height:1.2; font-weight:600; }
+
+/* ===== LANGUAGE CHAOS ===== */
+.lang { position:absolute; inset:0; background:var(--ink); overflow:hidden; }
+.lang::before { content:''; position:absolute; left:0; right:0; top:86px; height:56px; background:var(--m-romb) 0 center/56px 56px repeat-x; opacity:.85; }
+.lk { position:absolute; left:90px; top:180px; display:flex; gap:24px; align-items:baseline; }
+.lk b { font-size:30px; color:var(--y); } .lk span { font-size:26px; color:var(--mute); }
+.lhp { position:absolute; right:90px; top:186px; display:flex; gap:8px; }
+.lhp i { width:46px; height:22px; background:var(--fr); } .lhp i.x { background:var(--ink3); }
+.lword { position:absolute; left:0; right:0; top:250px; text-align:center; font-weight:700; line-height:1; color:var(--y); white-space:nowrap; letter-spacing:-.02em; transition:font-size .4s, top .4s; }
+.lang.rv .lword { top:240px; }
+.lguess { position:absolute; left:0; right:0; top:700px; text-align:center; font-size:58px; font-weight:700; }
+.lguess span { display:block; font-size:28px; color:var(--mute); font-weight:500; margin-top:10px; }
+.lsay { position:absolute; left:0; right:0; top:560px; display:flex; justify-content:center; flex-wrap:wrap; gap:12px 40px; animation:up .5s both; }
+.lsay .w { display:flex; gap:8px; }
+.lsay i { font-style:normal; font-size:70px; font-weight:700; padding:4px 22px; background:var(--w); color:var(--ink); }
+.lsay i.hi { background:var(--fr); color:var(--w); }
+.lmean { position:absolute; left:0; right:0; top:700px; text-align:center; font-size:84px; font-weight:700; animation:up .5s .15s both; }
+.lmean small { display:block; font-size:30px; font-weight:500; color:var(--mute); margin-top:12px; }
+.vol { position:absolute; left:90px; bottom:60px; display:flex; gap:12px; align-items:center; animation:up .5s .3s both; }
+.vol > span { font-size:24px; font-weight:700; color:var(--y); margin-right:10px; }
+.vol button { border:3px solid var(--tc); background:transparent; color:var(--w); font-size:22px; font-weight:700; padding:12px 18px; cursor:pointer; }
+.vol button:hover { background:var(--tc); color:var(--ink); }
+.twist .lword { font-size:150px; white-space:normal; padding:0 120px; line-height:1.02; top:250px; text-wrap:balance; }
+.twist .lmean { top:740px; font-size:44px; color:var(--mute); }
+.twist .lsay { top:600px; } .twist .lsay i { font-size:48px; }
+.wave { position:absolute; left:50%; top:610px; transform:translateX(-50%); display:flex; gap:8px; align-items:center; height:120px; }
+.wave i { width:14px; height:var(--h); background:var(--fr); animation:wv 1s var(--d) infinite alternate ease-in-out; }
+@keyframes wv { from { transform:scaleY(.2); } }
+
+/* ===== SURVIVAL ===== */
+.surv { position:absolute; inset:0; background:linear-gradient(#0a0c22, #1c0f28); overflow:hidden; }
+.surv::after { content:''; position:absolute; left:0; right:0; bottom:0; height:120px; background:#0c1f15; clip-path:polygon(0 50%,8% 50%,8% 30%,20% 30%,20% 55%,34% 55%,34% 20%,48% 20%,48% 45%,62% 45%,62% 10%,74% 10%,74% 40%,88% 40%,88% 25%,100% 25%,100% 100%,0 100%); }
+.sk { position:absolute; left:90px; top:130px; font-size:28px; font-weight:700; color:var(--y); display:flex; gap:24px; }
+.sk .hearts { color:var(--fr); letter-spacing:6px; }
+.st { position:absolute; left:90px; top:180px; font-size:100px; line-height:.95; font-weight:700; text-shadow:6px 6px 0 var(--fr); max-width:1450px; }
+.ss { position:absolute; left:90px; top:300px; font-size:46px; font-weight:600; max-width:1450px; line-height:1.2; }
+.ss b { color:var(--y); }
+.surv .cd { right:90px; top:130px; }
+.doors { position:absolute; left:90px; right:90px; top:430px; bottom:150px; display:flex; gap:26px; z-index:2; }
+.door { flex:1; position:relative; border:5px solid var(--w); background:linear-gradient(rgba(255,255,255,.04), rgba(255,255,255,0)), var(--ink2); padding:36px 34px; display:flex; flex-direction:column; transition:transform .5s, opacity .5s, border-color .4s; }
+.door::before { content:''; position:absolute; right:26px; top:50%; width:18px; height:18px; background:var(--y); transform:rotate(45deg); }
+.door em { font-style:normal; font-size:120px; font-weight:700; line-height:.8; color:var(--y); }
+.door span { margin-top:20px; font-size:44px; font-weight:700; line-height:1.08; }
+.door p { margin:auto 0 0; font-size:32px; line-height:1.22; font-weight:500; animation:up .5s .2s both; }
+.door .res { display:inline-block; font-size:22px; font-weight:700; padding:4px 12px; margin-bottom:12px; animation:up .5s both; }
+.door.ok { border-color:var(--y); transform:translateY(-14px); box-shadow:0 0 60px rgba(255,230,0,.25); }
+.door.ok .res { background:var(--y); color:var(--ink); }
+.door.no { opacity:.5; } .door.no .res { background:var(--fr); }
+.door.no::before { display:none; }
+.culture { position:absolute; left:90px; right:500px; bottom:44px; font-size:28px; line-height:1.25; animation:up .5s .4s both; z-index:3; }
+.culture b { background:#ff8a00; color:var(--ink); padding:2px 10px; margin-right:12px; font-size:20px; vertical-align:3px; }
+
+/* ===== FINAL BOSS ===== */
+.boss { position:absolute; inset:0; background:radial-gradient(circle at 50% 30%, #3d0610, #0b0204 70%); overflow:hidden; }
+.boss::before { content:''; position:absolute; inset:0; background:repeating-linear-gradient(0deg, rgba(255,255,255,.03) 0 2px, transparent 2px 6px); }
+.bhp { position:absolute; left:90px; right:90px; top:110px; display:flex; gap:20px; align-items:center; font-size:26px; font-weight:700; z-index:2; }
+.bhp .bar { flex:1; height:40px; border:4px solid var(--w); background:#2a0007; }
+.bhp .bar i { display:block; height:100%; background:linear-gradient(90deg, var(--fr), #ff7a00, var(--y)); transition:width 1.4s cubic-bezier(.2,.8,.2,1); }
+.bhp b { color:var(--y); width:130px; text-align:right; }
+.monster { position:absolute; left:110px; top:220px; width:380px; height:300px; animation:float 2.2s ease-in-out infinite; z-index:2; }
+.monster.hit { animation:hurt .6s; }
+@keyframes float { 50% { transform:translateY(-16px); } }
+@keyframes hurt { 20%,60% { transform:translateX(-16px); filter:brightness(3); } 40%,80% { transform:translateX(16px); } }
+.bq { position:absolute; left:560px; right:320px; top:230px; z-index:2; }
+.bq small { font-size:28px; font-weight:700; color:var(--y); }
+.bq h2 { margin:14px 0 0; font-size:74px; line-height:1.05; font-weight:700; }
+.boss .cd { right:100px; top:220px; }
+.bopts { position:absolute; left:90px; right:90px; bottom:70px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; z-index:2; }
+.bo { position:relative; display:flex; align-items:center; gap:24px; min-height:170px; padding:0 34px; background:rgba(20,21,25,.92); border:4px solid #3a3b44; border-top:12px solid var(--oc); font-size:52px; font-weight:700; transition:opacity .4s, transform .4s; }
+.bo em { font-style:normal; font-size:66px; color:var(--oc); }
+.bo.ok { background:var(--y); color:var(--ink); border-color:var(--y); transform:scale(1.04); } .bo.ok em { color:var(--ink); }
+.bo.no { opacity:.25; }
+.boss .award { bottom:260px; }
+.myth .award { bottom:272px; }
+.surv .award { top:130px; bottom:auto; }
+
+/* ===== FINAL ===== */
+.fin { position:absolute; inset:0; background:radial-gradient(circle at 50% 40%, #0b3bff 0%, #071a66 35%, var(--ink) 72%); overflow:hidden; }
+.fin-band { position:absolute; left:0; right:0; top:96px; height:70px; background:var(--m-romb) 0 center/70px 70px repeat-x; animation:bx 12s linear infinite; }
+@keyframes bx { to { background-position:700px center; } }
+.fin h1 { position:absolute; left:100px; top:190px; margin:0; font-size:190px; line-height:.82; font-weight:700; }
+.fin h1.y { top:345px; color:var(--y); }
+.fin-quote { position:absolute; left:100px; top:525px; font-size:46px; font-weight:700; line-height:1.2; }
+.fin-quote span { color:var(--y); }
+.trophy { position:absolute; right:140px; top:200px; width:330px; height:360px; animation:tro 1.2s cubic-bezier(.2,.8,.2,1) .3s both; }
+@keyframes tro { from { transform:translateY(-500px) rotate(-20deg); } 70% { transform:translateY(20px); } }
+.trophy svg { width:100%; height:100%; filter:drop-shadow(0 0 40px rgba(255,230,0,.5)); }
+.lb { position:absolute; left:100px; right:820px; bottom:136px; display:flex; flex-direction:column; gap:12px; }
+.lbr { display:flex; align-items:center; gap:22px; height:76px; padding:0 26px; background:rgba(8,8,10,.6); border-left:10px solid var(--tc); animation:up .5s var(--d) both; }
+.lbr em { font-style:normal; font-size:46px; font-weight:700; color:var(--tc); width:40px; }
+.lbr span { font-size:36px; font-weight:700; } .lbr b { margin-left:auto; font-size:46px; }
+.lbr.win { box-shadow:inset 0 0 0 4px var(--y); }
+.ach { position:absolute; right:100px; top:620px; width:640px; display:flex; gap:24px; align-items:center; background:var(--ink); border:4px solid var(--y); padding:22px 26px; animation:achIn .7s cubic-bezier(.2,.8,.2,1) 1.4s both; }
+@keyframes achIn { from { transform:translateX(800px); } }
+.ach i { width:96px; height:96px; flex:none; background:var(--m-romb) center/contain no-repeat, var(--ink3); }
+.ach small { display:block; font-size:18px; font-weight:700; color:var(--y); letter-spacing:.08em; }
+.ach b { display:block; font-size:40px; } .ach span { font-size:24px; color:var(--mute); }
+.fin-btns { position:absolute; right:100px; bottom:60px; display:flex; gap:14px; }
+.fin-btns button, .fin-win { font-size:24px; font-weight:700; padding:16px 22px; cursor:pointer; border:3px solid var(--w); background:transparent; color:var(--w); }
+.fin-btns button:hover { background:var(--w); color:var(--ink); }
+.fin-btns button.y { background:var(--y); border-color:var(--y); color:var(--ink); }
+.fin-win { position:absolute; left:100px; bottom:60px; border:0; padding:0; font-size:34px; cursor:default; }
+.fin-win b { color:var(--y); }
+
+/* scoreboard overlay */
+#over { position:absolute; inset:0; z-index:80; display:none; background:rgba(8,8,10,.96); }
+#over.on { display:block; animation:fade .2s; }
+.ov-in { position:absolute; left:50%; top:150px; width:1300px; transform:translateX(-50%); }
+.ov-in h2 { font-size:120px; margin:0 0 40px; color:var(--y); }
+.ov-in .lbr { height:110px; } .ov-in .lbr span { font-size:48px; } .ov-in .lbr b { font-size:70px; }
+.ov-close { position:absolute; left:0; right:0; bottom:40px; text-align:center; font-size:22px; color:var(--mute); }
+
+/* presenter control bar (real pixels, outside the stage) */
+#ctl { position:fixed; left:50%; bottom:10px; transform:translate(-50%, 140%); z-index:100; display:flex; align-items:center; gap:6px; padding:8px; background:rgba(14,15,19,.96); border:1px solid #33343c; box-shadow:0 10px 40px rgba(0,0,0,.6); transition:transform .25s cubic-bezier(.2,.8,.2,1); font-size:13px; max-width:calc(100vw - 20px); flex-wrap:wrap; justify-content:center; }
+#ctl.show, #ctl.pin { transform:translate(-50%,0); }
+#ctl button { min-height:36px; padding:6px 10px; background:#22232a; color:var(--w); border:1px solid #3a3b44; font-size:13px; font-weight:600; cursor:pointer; }
+#ctl button:hover { border-color:var(--y); }
+#ctl button.y { background:var(--y); color:var(--ink); border-color:var(--y); }
+#ctl button.tm { border-left:5px solid var(--tc); } #ctl button.tm.act { background:var(--tc); color:var(--ink); }
+#ctl .sep { width:1px; height:28px; background:#3a3b44; margin:0 4px; }
+#ctl .cap { color:var(--mute); padding:0 4px; }
+#toast { position:fixed; left:50%; top:16px; transform:translate(-50%,-80px); background:var(--y); color:var(--ink); font-weight:700; padding:10px 18px; z-index:120; transition:.25s; }
+#toast.show { transform:translate(-50%,0); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; } }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="screen"></div>
+  <div id="hud" class="off"></div>
+  <div id="splash"><div class="sp-bg"></div><div class="sp-band"></div><div class="sp-band b2"></div><div class="sp-t"><small id="sp-k"></small><b id="sp-n"></b><i id="sp-d"></i></div></div>
+  <div id="fx"></div>
+  <div id="over"></div>
+</div>
+<div id="ctl">
+  <button data-c="back">◀ Back</button>
+  <button data-c="reveal" class="y">Reveal ⏎</button>
+  <button data-c="next">Next ␣</button>
+  <span class="sep"></span>
+  <button data-c="timer" id="c-timer">Timer ▶ (T)</button>
+  <button data-c="treset">↺ (R)</button>
+  <span class="sep"></span>
+  <span id="c-teams"></span>
+  <button data-c="x50">+50</button><button data-c="x100">+100</button><button data-c="x150">+150</button><button data-c="x200">+200</button><button data-c="xm50">−50</button>
+  <button data-c="undo">Undo (U)</button>
+  <span class="sep"></span>
+  <button data-c="score">Scores (S)</button>
+  <button data-c="mute" id="c-mute">Sound (M)</button>
+  <button data-c="fs">Fullscreen (F)</button>
+  <button data-c="pin" id="c-pin">Pin bar (C)</button>
+  <button data-c="reset" id="c-reset">Reset</button>
+</div>
+<div id="toast"></div>
+
+<script>
+{
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+const pad = (n) => String(n).padStart(2, '0');
+
+/* ---------- pixel motifs (Romanian cross-stitch = pixel art) ---------- */
+const ROMB = ['.....r.....','....rrr....','...rr.rr...','..rr.y.rr..','.rr.yyy.rr.','rr.yy.yy.rr','.rr.yyy.rr.','..rr.y.rr..','...rr.rr...','....rrr....','.....r.....'];
+function pix(grid, cols, cell = 6, padc = 1) {
+  const h = grid.length, w = grid[0].length, W = (w + padc * 2) * cell, H = (h + padc * 2) * cell;
+  let r = '';
+  grid.forEach((row, y) => [...row].forEach((ch, x) => { if (cols[ch]) r += `<rect x="${(x + padc) * cell + 1}" y="${(y + padc) * cell + 1}" width="${cell - 2}" height="${cell - 2}" fill="${cols[ch]}"/>`; }));
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${r}</svg>`;
+}
+const uri = (svg) => 'url("data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg) + '")';
+const R = document.documentElement.style;
+R.setProperty('--m-romb', uri(pix(ROMB, { r:'#e8112d', y:'#ffe600' })));
+R.setProperty('--m-romb-k', uri(pix(ROMB, { r:'#08080a', y:'#08080a' })));
+R.setProperty('--m-dim', uri(pix(ROMB, { r:'#2a1014', y:'#2c2a10' })));
+const MONSTER = [
+  '..y..........y..','..yy........yy..','...yy.rrrr.yy...','....yrrrrrry....','...rrrrrrrrrr...',
+  '..rrwwrrrrwwrr..','..rrwkrrrrkwrr..','.rrrrrrrrrrrrrr.','.rr.rrrrrrrr.rr.','..r.rwrwrwrw.r..','....rrrrrrrr....','.....r.rr.r.....'];
+const TROPHY = [
+  '..yyyyyyyyyy..','yyyyyyyyyyyyyy','y.yyyyyyyyyy.y','y.yyywyyyyyy.y','.yyyywyyyyyyy.','..yyyyyyyyyy..',
+  '...yyyyyyyy...','.....yyyy.....','......yy......','......yy......','....rrrrrr....','...bbbbbbbb...','...bbbbbbbb...'];
+
+/* ---------- photos (Wikimedia Commons; illustrated fallback if offline) ---------- */
+const IMG = {
+  intro: 'Romania_Transfagarasan.jpg', bran: 'Bran_Castle_-_Castelul_Bran.JPG', bear: 'Carpathian_Brown_Bear_(232367505).jpeg',
+  parl: 'Bucarest,_Palazzo_del_Parlamento_di_notte_01.JPG', sarmale: 'Sarmale_with_mamaligă.jpg', mici: 'Mititei_la_gratar.jpg', papanasi: 'Papanasi_cu_cirese.jpg'
+};
+const imgURL = (k) => 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(IMG[k]) + '?width=1280';
+const photo = (k) => `<div class="ph"><i class="fbm"></i><img src="${imgURL(k)}" alt="" onload="this.classList.add('ok')" onerror="this.remove()"></div>`;
+Object.keys(IMG).forEach((k) => { const i = new Image(); i.src = imgURL(k); });
+
+/* ---------- content (facts checked against published sources) ---------- */
+const MYTHS = [
+  { s: 'Dracula lived in Bran Castle.', a: false, img: 'bran', tag: 'MYTH DETECTED',
+    f: 'No proof <b>Vlad the Impaler</b> ever lived there. Count Dracula is <b>fiction</b> — Bram Stoker wrote him in 1897 and never visited Romania. Tourism did the rest.' },
+  { s: 'Romania has more brown bears than any country in Europe except Russia.', a: true, img: 'bear', tag: 'VERIFIED',
+    f: 'A national DNA census (2025) estimated roughly <b>10,600–12,800 bears</b>, mostly in the Carpathian forests.' },
+  { s: 'The heaviest building in the world is in Bucharest.', a: true, img: 'parl', tag: 'VERIFIED',
+    f: 'The <b>Palace of the Parliament</b> holds the Guinness record. Built from 1984 under Ceaușescu — more than <b>1,000 rooms</b>.' }
+];
+const FOODS = [
+  { n: 'Sarmale', img: 'sarmale', fo: '40% 60%', inside: 'Cabbage leaves rolled around minced pork and rice', when: 'Christmas and weddings — with mămăligă and sour cream', fact: 'Serbia, Bulgaria and Turkey make it too. From Turkish “sarmak”: to wrap.' },
+  { n: 'Mici', img: 'mici', fo: '55% 50%', inside: 'Grilled skinless rolls of minced meat, garlic and spices', when: 'Every barbecue, above all on 1 May — with mustard and a beer', fact: 'Full name “mititei” — literally “the little ones”.' },
+  { n: 'Papanași', img: 'papanasi', fo: '50% 45%', inside: 'Fresh-cheese doughnuts, sour cream and sour-cherry jam', when: 'Dessert — at home and in restaurants', fact: 'The classic look: a big ring with a small ball on top, like a hat.' }
+];
+const WORDS = [
+  { w: 'Mulțumesc', say: 'mool-tsoo-MESK', mean: 'Thank you', note: 'The most useful word of the week.' },
+  { w: 'Noroc!', say: 'no-ROK', mean: 'Cheers! / Good luck!', note: 'Raise your glass: Živeli · Nazdrave · Şerefe · Na zdraví · Salute' },
+  { w: 'Dor', say: 'DOR', mean: 'Longing', note: 'Missing someone or somewhere, sweet and sad at once. Often called untranslatable.' }
+];
+const TWISTER = { w: 'Șase sași în șase saci.', say: 'SHAH-seh SAHSH un SHAH-seh SAHCH', mean: '“Six Saxons in six sacks.” — say it 3 times, fast.' };
+const SURV = [
+  { t: 'FAMILY DINNER', s: 'You have eaten three plates. The host says: <b>“YOU’VE BARELY EATEN ANYTHING!”</b>', best: 2,
+    o: [['Leave immediately', 'The host packs 2 kg of food for the road anyway.'], ['Say “no, thank you”', 'Accepted… for 30 seconds. Then a new plate appears.'], ['Accept another serving', 'The host is delighted. You are now family.']],
+    c: 'Hosts often offer food several times — it’s hospitality. A polite “no” is fine; you may just need to say it twice.' },
+  { t: 'THE WEDDING', s: 'You are at a Romanian wedding. Everyone grabs hands. <b>THE HORA STARTS.</b>', best: 2,
+    o: [['Hide', 'They find you. They always find you.'], ['Watch from a safe distance', 'An aunt pulls you into the circle anyway.'], ['Join the circle', 'Even if you stepped on three feet. Welcome!']],
+    c: 'The hora is a circle dance everyone joins, and weddings often go until morning. Serbs dance kolo, Bulgarians horo — same energy.' }
+];
+const BOSSQ = [
+  { q: 'Romania has more of these than any European country except Russia:', o: ['Wolves', 'Brown bears', 'Pelicans'], c: 1 },
+  { q: '“Noroc!” means…', o: ['Goodbye!', 'Cheers!', 'Sorry!'], c: 1 },
+  { q: '“Sarmale” comes from the Turkish “sarmak”, meaning…', o: ['To boil', 'To share', 'To wrap'], c: 2 }
+];
+const SECTIONS = [
+  { id: 'boot', name: 'BOOT', est: '0:30' }, { id: 'myth', name: 'MYTH OR REALITY', short: 'MYTHS', est: '1:10', lv: 1 }, { id: 'food', name: 'FOOD LOOT', short: 'FOOD', est: '1:00', lv: 2 },
+  { id: 'lang', name: 'LANGUAGE CHAOS', short: 'LANGUAGE', est: '1:00', lv: 3 }, { id: 'surv', name: 'SURVIVAL TEST', short: 'SURVIVAL', est: '1:30', lv: 4 }, { id: 'boss', name: 'FINAL BOSS', short: 'BOSS', est: '0:50', lv: 5 }
+];
+
+/* ---------- steps ---------- */
+const STEPS = [
+  { sec: 'boot', k: 'intro' }, { sec: 'boot', k: 'teams' },
+  ...MYTHS.map((m, i) => ({ sec: 'myth', k: 'myth', i, phases: 2, timer: 5 })),
+  ...FOODS.map((f, i) => ({ sec: 'food', k: 'food', i, phases: 2, timer: 10 })),
+  ...WORDS.map((w, i) => ({ sec: 'lang', k: 'word', i, phases: 2 })),
+  { sec: 'lang', k: 'twist', phases: 2 },
+  ...SURV.map((s, i) => ({ sec: 'surv', k: 'surv', i, phases: 2, timer: 10 })),
+  ...BOSSQ.map((q, i) => ({ sec: 'boss', k: 'boss', i, phases: 2, timer: 10 })),
+  { sec: 'end', k: 'final' }
+];
+
+/* ---------- state ---------- */
+const KEY = 'ru-quest-v1';
+const TEAM_COLORS = ['#e8112d', '#ffe600', '#0b3bff'];
+const fresh = () => ({ teams: [{ n: 'TEAM DRACULA', xp: 0 }, { n: 'TEAM CARPATHIANS', xp: 0 }, { n: 'TEAM DACIA', xp: 0 }], hist: [], step: 0, phase: 0, act: 0, muted: false, t0: 0, cleared: [], hits: [] });
+let S; try { S = Object.assign(fresh(), JSON.parse(localStorage.getItem(KEY)) || {}); } catch (e) { S = fresh(); }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+const step = () => STEPS[S.step];
+const tc = (i) => TEAM_COLORS[i];
+
+/* ---------- sound ---------- */
+let AC = null;
+function tone(f, d, type = 'square', v = .07, w = 0, sl = 0) {
+  if (S.muted) return;
+  try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); } catch (e) { return; }
+  const t = AC.currentTime + w, o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t); if (sl) o.frequency.exponentialRampToValueAtTime(sl, t + d);
+  g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+  o.connect(g).connect(AC.destination); o.start(t); o.stop(t + d + .03);
+}
+const seq = (ns, st = .09, ty = 'square', v = .07) => ns.forEach((f, i) => f && tone(f, st * 1.6, ty, v, i * st));
+const SFX = {
+  next: () => tone(520, .08, 'triangle', .08, 0, 800), reveal: () => { tone(160, .25, 'sawtooth', .05, 0, 900); tone(1200, .12, 'square', .05, .2); },
+  good: () => seq([523, 659, 784, 1047]), bad: () => tone(220, .4, 'sawtooth', .07, 0, 90), tick: () => tone(1400, .03, 'square', .05),
+  buzz: () => tone(140, .6, 'sawtooth', .09, 0, 70), xp: () => seq([988, 1319], .06), level: () => seq([392, 523, 659, 784, 1047], .07),
+  start: () => { tone(110, .9, 'sawtooth', .06, 0, 880); seq([0, 0, 0, 0, 0, 0, 0, 784, 1047, 1568], .1); }, hit: () => { tone(90, .35, 'sawtooth', .1, 0, 40); seq([0, 0, 1568, 1319], .05); },
+  win: () => seq([523, 523, 523, 698, 0, 880, 784, 880, 1047], .13)
+};
+
+/* ---------- XP ---------- */
+function award(team, n, label) {
+  const t = S.teams[team]; if (!t) return;
+  t.xp = Math.max(0, t.xp + n); S.hist.push({ team, n, label }); save();
+  hud(); ctlTeams();
+  const el = document.createElement('div'); el.className = 'pop'; el.style.setProperty('--tc', tc(team));
+  el.innerHTML = `<b>${n > 0 ? '+' : ''}${n} XP</b><span>${esc(t.n)}</span>`; $('#fx').appendChild(el); setTimeout(() => el.remove(), 1700);
+  n > 0 ? SFX.xp() : SFX.bad();
+  if (overOn) scoreboard(true);
+}
+function undo() {
+  const h = S.hist.pop(); if (!h) return toast('Nothing to undo');
+  S.teams[h.team].xp = Math.max(0, S.teams[h.team].xp - h.n); save(); hud(); toast('Undone: ' + (h.n > 0 ? '+' : '') + h.n + ' ' + S.teams[h.team].n);
+  if (overOn) scoreboard(true);
+}
+
+/* ---------- countdown (presenter-controlled, never auto-advances) ---------- */
+const T = { total: 0, left: 0, run: false, last: 0, sec: -1 };
+function tSet(n) { T.total = n || 0; T.left = T.total; T.run = false; tDraw(); }
+function tToggle() { if (!T.total) return toast('No countdown on this screen'); if (T.run) { T.run = false; } else { if (T.left <= 0) T.left = T.total; T.run = true; T.last = performance.now(); } tDraw(); }
+function tReset() { T.left = T.total; T.run = false; tDraw(); }
+setInterval(() => {
+  if (T.run) {
+    const n = performance.now(); T.left -= (n - T.last) / 1000; T.last = n;
+    const s = Math.ceil(T.left); if (s !== T.sec) { T.sec = s; if (s > 0 && s <= 3) SFX.tick(); }
+    if (T.left <= 0) { T.left = 0; T.run = false; SFX.buzz(); flash("TIME'S UP"); }
+    tDraw();
+  }
+  clock();
+}, 100);
+function tDraw() {
+  $$('.cd').forEach((el) => {
+    el.style.setProperty('--f', T.total ? T.left / T.total : 0);
+    el.classList.toggle('run', T.run); el.classList.toggle('low', T.run && T.left <= 3); el.classList.toggle('end', !T.run && T.left <= 0 && T.total > 0);
+    $('b', el).textContent = Math.ceil(T.left);
+  });
+  $('#c-timer').textContent = T.total ? (T.run ? 'Timer ❚❚ (T)' : 'Timer ▶ (T)') : 'No timer';
+}
+const cdHTML = () => `<div class="cd" data-cd><svg viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="44"/><circle class="fg" cx="50" cy="50" r="44" pathLength="100"/></svg><b></b><small>T / click = start</small></div>`;
+
+/* ---------- navigation ---------- */
+let first = true;
+function go(i, phase = 0) {
+  const prevSec = step() && step().sec;
+  S.step = Math.max(0, Math.min(STEPS.length - 1, i)); S.phase = phase; save();
+  const st = step();
+  tSet(st.timer || 0);
+  first = true; render();
+  if (st.sec !== prevSec) enterSection(prevSec, st.sec);
+}
+function enterSection(from, to) {
+  if (from && from !== 'boot' && from !== 'end' && !S.cleared.includes(from) && SECTIONS.findIndex((s) => s.id === to) > SECTIONS.findIndex((s) => s.id === from)) { S.cleared.push(from); save(); }
+  const s = SECTIONS.find((x) => x.id === to);
+  if (s && s.lv) splash(s);
+  if (to === 'end') { SFX.win(); setTimeout(confetti, 300); setTimeout(confetti, 2200); }
+  hud();
+}
+function advance() {
+  const st = step();
+  if (st.k === 'intro') return startBoot();
+  if (st.phases && S.phase < st.phases - 1) return reveal();
+  if (S.step < STEPS.length - 1) { SFX.next(); go(S.step + 1); }
+}
+function back() {
+  if (S.phase > 0) { S.phase = 0; save(); first = false; render(); return; }
+  if (S.step > 0) go(S.step - 1);
+}
+function reveal() {
+  const st = step();
+  if (!st.phases || S.phase >= st.phases - 1) return;
+  S.phase = st.phases - 1; save(); T.run = false; tDraw();
+  first = false; render();
+  if (st.k === 'myth') { SFX.reveal(); setTimeout(() => (MYTHS[st.i].a ? SFX.good() : SFX.bad()), 350); }
+  else if (st.k === 'boss') { SFX.reveal(); if (!S.hits.includes(st.i)) { S.hits.push(st.i); save(); } setTimeout(() => { SFX.hit(); const m = $('.monster'); if (m) { m.classList.remove('hit'); void m.offsetWidth; m.classList.add('hit'); } const b = $('.bhp .bar i'); if (b) b.style.width = bossHP() + '%'; const n = $('.bhp b'); if (n) n.textContent = bossHP() + '% HP'; }, 300); }
+  else SFX.reveal();
+}
+function bossHP() { return Math.max(0, 100 - S.cleared.filter((c) => c !== 'boss').length * 10 - S.hits.length * 20); }
+
+/* ---------- render ---------- */
+function render() {
+  const st = step(), A = first ? 'in' : '';
+  const rv = st.phases && S.phase === st.phases - 1;
+  let h = '';
+  if (st.k === 'intro') h = introHTML();
+  else if (st.k === 'teams') h = teamsHTML();
+  else if (st.k === 'myth') h = mythHTML(MYTHS[st.i], st.i, rv, A);
+  else if (st.k === 'food') h = foodHTML(FOODS[st.i], st.i, rv, A);
+  else if (st.k === 'word') h = wordHTML(WORDS[st.i], st.i, rv, A);
+  else if (st.k === 'twist') h = twistHTML(rv, A);
+  else if (st.k === 'surv') h = survHTML(SURV[st.i], st.i, rv, A);
+  else if (st.k === 'boss') h = bossHTML(BOSSQ[st.i], st.i, rv, A);
+  else if (st.k === 'final') h = finalHTML();
+  $('#screen').innerHTML = h;
+  bind(); tDraw(); hud(); first = false;
+}
+function awardStrip(label, n) {
+  return `<div class="award"><span>${esc(label)}</span>${S.teams.map((t, i) => `<button data-aw="${i}:${n}" style="--tc:${tc(i)}">${esc(t.n)}<b>+${n}</b></button>`).join('')}</div>`;
+}
+function bind() {
+  $$('[data-aw]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); const [i, n] = b.dataset.aw.split(':').map(Number); award(i, n, 'stage'); });
+  $$('[data-cd]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); tToggle(); });
+  $$('[data-act]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); act(b.dataset.act); });
+  $$('input[data-team]').forEach((inp) => {
+    inp.oninput = () => { S.teams[+inp.dataset.team].n = inp.value.toUpperCase().slice(0, 20) || 'TEAM ' + (+inp.dataset.team + 1); save(); hud(); ctlTeams(); };
+    inp.onkeydown = (e) => { if (e.key === 'Enter' || e.key === 'Escape') inp.blur(); };
+  });
+}
+
+/* ---- BOOT ---- */
+function introHTML() {
+  return `<div class="boot">${photo('intro')}<div class="flagstrip"></div>
+    <div class="bt-main">
+      <h1 class="glitch in" data-t="ROMANIA">ROMANIA</h1>
+      <h1 class="glitch y in d1" data-t="UNLOCKED">UNLOCKED</h1>
+      <div class="bt-tag in d2">THE 6-MINUTE QUEST</div>
+      <div class="bt-hook" id="hook"></div>
+      <button class="bt-start" data-act="start"><span>▶ PRESS START</span></button>
+    </div>
+    <div class="bt-log" id="blog"></div>
+    <div class="bt-tools"><button class="tool" data-act="mute">${S.muted ? 'SOUND: OFF' : 'SOUND: ON'}</button><button class="tool" data-act="fs">FULLSCREEN</button><button class="tool" data-act="help">CONTROLS: MOVE MOUSE TO THE BOTTOM · C TO PIN</button></div>
+    <div class="load" id="load"><div class="load-in"><div class="load-n"><span id="ln">0</span>%</div><div class="load-bar"><i id="lb"></i></div><div class="load-l" id="ll">LOADING ROMANIA</div></div></div>
+  </div>`;
+}
+function introFX() {
+  const hook = 'How much do you actually know about Romania?';
+  let k = 0; const el = $('#hook'); if (!el) return;
+  const ty = setInterval(() => { if (!$('#hook')) return clearInterval(ty); el.innerHTML = esc(hook.slice(0, ++k)) + '<i>_</i>'; if (k >= hook.length) clearInterval(ty); }, 45);
+  const lines = ['CARTRIDGE: ROMANIA.RO', 'REGION: SOUTH-EAST EUROPE', 'PLAYERS: RO · RS · BG · TR · CZ · IT', 'LEVELS: 5', 'BOSS: DETECTED', 'STATUS: <b>READY</b>'];
+  lines.forEach((l, i) => setTimeout(() => { const b = $('#blog'); if (b) b.insertAdjacentHTML('beforeend', `<div>&gt; ${l}</div>`); }, 500 + i * 380));
+}
+let booting = false;
+function startBoot() {
+  if (booting) return; booting = true; SFX.start();
+  if (!S.t0) { S.t0 = Date.now(); save(); }
+  const L = $('#load'); if (!L) { booting = false; return go(1); }
+  L.classList.add('on');
+  const txt = ['LOADING CARPATHIANS', 'COUNTING BEARS', 'GRILLING MICI', 'CALIBRATING “DOR”', 'UNLOCKING 5 LEVELS'];
+  const t0 = performance.now(), D = 2400;
+  const f = () => { const p = Math.min(1, (performance.now() - t0) / D); $('#ln').textContent = Math.round(p * 100); $('#lb').style.width = p * 100 + '%'; $('#ll').textContent = txt[Math.min(txt.length - 1, Math.floor(p * txt.length))]; if (p < 1) requestAnimationFrame(f); else setTimeout(() => { booting = false; go(1); }, 300); };
+  requestAnimationFrame(f);
+}
+function teamsHTML() {
+  return `<div class="teams">${S.teams.map((t, i) => `<div class="tcol" style="--tc:${tc(i)}"><em class="in d${i}">${i + 1}</em><input class="in d${i + 1}" data-team="${i}" value="${esc(t.n)}" maxlength="20" aria-label="Team ${i + 1} name"><small>CLICK TO RENAME</small></div>`).join('')}
+    <div class="rules"><p class="in d3">Split into <b>3 teams</b>. Every challenge earns <b>XP</b>. Vote with your <b>hands</b>. Unlock Romania — and beat the <b>Final Boss</b>.</p><div class="hint">SPACE to begin · 1 / 2 / 3 = +100 XP to that team · SHIFT + 1 / 2 / 3 = +50</div></div></div>`;
+}
+
+/* ---- MYTH ---- */
+function mythHTML(m, i, rv, A) {
+  return `<div class="myth ${rv ? 'rv' : ''}">${photo(m.img)}<div class="scanline"></div>
+    <div class="mk ${A}"><i>●</i>TRUTH SCANNER · STATEMENT ${i + 1}/3</div>
+    <div class="mq ${A}">“${esc(m.s)}”</div>
+    ${cdHTML()}
+    ${rv ? `<div class="verdict ${m.a ? 'v-t' : 'v-f'}">${m.a ? 'TRUE' : 'FALSE'} · ${m.tag}</div><div class="mfact">${m.f}</div>` : ''}
+    <div class="brackets">
+      <div class="br t ${rv ? (m.a ? 'ok' : 'no') : ''}"><em>LEFT HAND</em>TRUE</div>
+      <div class="br f ${rv ? (!m.a ? 'ok' : 'no') : ''}">FALSE<em>RIGHT HAND</em></div>
+    </div>
+    ${rv ? awardStrip('WHO GOT IT?', 100) : ''}
+  </div>`;
+}
+
+/* ---- FOOD ---- */
+function foodHTML(f, i, rv, A) {
+  return `<div class="food ${rv ? 'rv' : ''}" style="--fo:${f.fo}">${photo(f.img)}<div class="shade"></div>
+    <div class="fnum">FOOD LOOT · DISH ${i + 1}/3</div>
+    ${rv ? '' : cdHTML()}
+    ${rv ? `<div class="fname">${esc(f.n)}</div>
+      <div class="finfo"><div><small>WHAT'S INSIDE</small><p>${esc(f.inside)}</p></div><div><small>WHEN</small><p>${esc(f.when)}</p></div><div><small>DID YOU KNOW</small><p>${esc(f.fact)}</p></div></div>
+      ${awardStrip('GUESSED IT?', 100)}`
+    : `<div class="fq ${A}">WHAT ARE YOU<br><b>LOOKING AT?</b></div>`}
+  </div>`;
+}
+
+/* ---- LANGUAGE ---- */
+const syl = (say) => say.split(' ').map((w) => `<span class="w">${w.split('-').map((s) => `<i class="${s === s.toUpperCase() && /[A-Z]/.test(s) ? 'hi' : ''}">${esc(s)}</i>`).join('')}</span>`).join('');
+const hpBar = (n) => `<div class="lhp">${[0, 1, 2, 3].map((k) => `<i class="${k < n ? '' : 'x'}"></i>`).join('')}</div>`;
+function volStrip(n, label) { return `<div class="vol"><span>${label}</span>${S.teams.map((t, i) => `<button data-aw="${i}:${n}" style="--tc:${tc(i)}">${esc(t.n)} +${n}</button>`).join('')}</div>`; }
+function wordHTML(w, i, rv, A) {
+  const size = Math.min(380, Math.round(1700 / (w.w.length * .58)));
+  return `<div class="lang ${rv ? 'rv' : ''}">
+    <div class="lk"><b>LANGUAGE CHAOS</b><span>WORD ${i + 1}/3 · BOSS WORD HP</span></div>${hpBar(3 - i - (rv ? 1 : 0) + 1)}
+    <div class="lword ${A}" style="font-size:${rv ? Math.round(size * .62) : size}px">${esc(w.w)}</div>
+    ${rv ? `<div class="lsay">${syl(w.say)}</div><div class="lmean">= ${esc(w.mean)}<small>${esc(w.note)}</small></div>${volStrip(50, 'VOLUNTEER SAID IT →')}`
+    : `<div class="lguess ${A}">WHAT DOES IT MEAN?<span>Shout your guess!</span></div>`}
+  </div>`;
+}
+function twistHTML(rv, A) {
+  return `<div class="lang twist ${rv ? 'rv' : ''}">
+    <div class="lk"><b>TONGUE TWISTER</b><span>FINAL CHALLENGE · EVERYONE TRIES</span></div>${hpBar(rv ? 0 : 1)}
+    <div class="lword ${A}">${esc(TWISTER.w)}</div>
+    ${rv ? `<div class="lsay">${syl(TWISTER.say)}</div><div class="lmean">${esc(TWISTER.mean)}</div>
+      <div class="vol"><span>VOLUNTEER: TRIED +50 · NAILED +150 →</span>${S.teams.map((t, i) => `<button data-aw="${i}:50" style="--tc:${tc(i)}">${esc(t.n.replace(/^TEAM /, ''))} +50</button><button data-aw="${i}:150" style="--tc:${tc(i)};margin-right:14px">+150</button>`).join('')}</div>`
+    : `<div class="wave">${Array.from({ length: 44 }, (_, k) => `<i style="--d:${(k % 7) * .09}s;--h:${24 + (k * 37) % 70}%"></i>`).join('')}</div><div class="lmean" style="top:780px">${esc(TWISTER.mean.split('—')[0])}</div>`}
+  </div>`;
+}
+
+/* ---- SURVIVAL ---- */
+function survHTML(s, i, rv, A) {
+  return `<div class="surv">
+    <div class="sk">SURVIVAL TEST · SITUATION ${i + 1}/2 <span class="hearts">${'♥'.repeat(3 - i)}</span></div>
+    <div class="st ${A}">${esc(s.t)}</div>
+    <div class="ss ${A} d1">${s.s}</div>
+    ${rv ? '' : cdHTML()}
+    <div class="doors">${s.o.map((o, k) => `<div class="door ${rv ? (k === s.best ? 'ok' : 'no') : ''} ${A} d${k + 1}"><em>${'ABC'[k]}</em><span>${esc(o[0])}</span>${rv ? `<p><span class="res">${k === s.best ? 'SURVIVED' : 'OOPS'}</span><br>${esc(o[1])}</p>` : ''}</div>`).join('')}</div>
+    ${rv ? `<div class="culture"><b>THE TRUTH</b>${esc(s.c)}</div>${awardStrip('CHOSE ' + 'ABC'[s.best] + '?', 100)}` : ''}
+  </div>`;
+}
+
+/* ---- BOSS ---- */
+function bossHTML(q, i, rv, A) {
+  const hpBefore = rv ? Math.min(100, bossHP() + 20) : bossHP();
+  const cols = ['var(--y)', 'var(--fb)', 'var(--fr)'];
+  return `<div class="boss">
+    <div class="bhp"><span>FINAL BOSS · THE GUARDIAN OF ROMANIA</span><div class="bar"><i style="width:${hpBefore}%"></i></div><b>${hpBefore}% HP</b></div>
+    <div class="monster">${pix(MONSTER, { y: '#ffe600', r: '#e8112d', w: '#f5f4ef', k: '#08080a' }, 22, 0)}</div>
+    <div class="bq"><small>QUESTION ${i + 1}/3 · RAPID FIRE</small><h2 class="${A}">${esc(q.q)}</h2></div>
+    ${cdHTML()}
+    <div class="bopts">${q.o.map((o, k) => `<div class="bo ${rv ? (k === q.c ? 'ok' : 'no') : ''} ${A} d${k + 1}" style="--oc:${cols[k]}"><em>${'ABC'[k]}</em>${esc(o)}</div>`).join('')}</div>
+    ${rv ? awardStrip('CORRECT TEAM →', 100) : ''}
+  </div>`;
+}
+
+/* ---- FINAL ---- */
+function finalHTML() {
+  const ts = S.teams.map((t, i) => ({ ...t, i })).sort((a, b) => b.xp - a.xp);
+  const tie = ts[1] && ts[0].xp === ts[1].xp;
+  return `<div class="fin"><div class="fin-band"></div>
+    <h1 class="glitch in" data-t="ROMANIA">ROMANIA</h1><h1 class="glitch y in d1" data-t="UNLOCKED!">UNLOCKED!</h1>
+    <div class="fin-quote in d2">YOU CAME FOR THE GAME.<br><span>YOU LEFT WITH A COUNTRY.</span></div>
+    <div class="trophy">${pix(TROPHY, { y: '#ffe600', w: '#fffbe0', r: '#e8112d', b: '#0b3bff' }, 24, 0)}</div>
+    <div class="lb">${ts.map((t, k) => `<div class="lbr ${k === 0 && !tie ? 'win' : ''}" style="--tc:${tc(t.i)};--d:${.6 + k * .15}s"><em>${k + 1}</em><span>${esc(t.n)}</span><b>${t.xp} XP</b></div>`).join('')}</div>
+    <div class="ach"><i></i><div><small>ACHIEVEMENT UNLOCKED</small><b>ROMANIA EXPLORER</b><span>“You survived the quest.”</span></div></div>
+    <div class="fin-win">${tie ? 'IT\'S A TIE — <b>EVERYONE WINS</b>' : `WINNER: <b style="color:${tc(ts[0].i)}">${esc(ts[0].n)}</b>`} · Mulțumesc!</div>
+    <div class="fin-btns"><button data-act="score">VIEW SCOREBOARD</button><button data-act="again" class="y">PLAY AGAIN</button><button data-act="restart">RESTART QUEST</button></div>
+  </div>`;
+}
+
+/* ---------- HUD ---------- */
+function hud() {
+  const st = step(), h = $('#hud');
+  h.classList.toggle('off', st.k === 'intro');
+  if (st.k === 'intro') return;
+  const curIdx = st.sec === 'end' ? SECTIONS.length : SECTIONS.findIndex((s) => s.id === st.sec);
+  const inSec = STEPS.filter((x) => x.sec === st.sec); const pos = inSec.indexOf(st);
+  h.innerHTML = `<div class="h-title">ROMANIA: <b>UNLOCKED</b></div>
+    <div class="prog">${SECTIONS.map((s, k) => { const p = k < curIdx ? 100 : k === curIdx ? Math.round(((pos + (st.phases && S.phase ? 1 : .5)) / inSec.length) * 100) : 0;
+      return `<div class="seg ${k < curIdx ? 'done' : k === curIdx ? 'cur' : ''}" style="--p:${p}%"><i></i><span>${s.short || s.name}</span><small>~${s.est}</small></div>`; }).join('')}</div>
+    <div class="clock" id="clock"></div>
+    <div class="scores">${S.teams.map((t, i) => `<div class="sc ${i === S.act ? 'act' : ''}" style="--tc:${tc(i)}"><span>${esc(t.n)}</span><b>${t.xp}</b></div>`).join('')}</div>`;
+  clock();
+}
+function clock() {
+  const c = $('#clock'); if (!c) return;
+  if (!S.t0) { c.textContent = '0:00'; return; }
+  const s = Math.floor((Date.now() - S.t0) / 1000), txt = Math.floor(s / 60) + ':' + pad(s % 60);
+  if (c.textContent !== txt) c.textContent = txt;
+  c.classList.toggle('late', s > 360);
+}
+
+/* ---------- overlays / fx ---------- */
+let overOn = false;
+function scoreboard(force) {
+  const o = $('#over');
+  if (overOn && !force) { overOn = false; o.className = ''; o.innerHTML = ''; return; }
+  overOn = true; o.className = 'on';
+  const ts = S.teams.map((t, i) => ({ ...t, i })).sort((a, b) => b.xp - a.xp);
+  o.innerHTML = `<div class="ov-in"><h2>SCOREBOARD</h2><div class="lb" style="position:static">${ts.map((t, k) => `<div class="lbr ${k === 0 ? 'win' : ''}" style="--tc:${tc(t.i)};--d:${k * .1}s"><em>${k + 1}</em><span>${esc(t.n)}</span><b>${t.xp} XP</b></div>`).join('')}</div></div><div class="ov-close">S or ESC to close</div>`;
+}
+function splash(s) {
+  const el = $('#splash');
+  $('#sp-k').textContent = 'LEVEL ' + s.lv + (s.id === 'boss' ? ' · FINAL' : '');
+  $('#sp-n').textContent = s.name; $('#sp-d').textContent = '≈ ' + s.est + ' · GET READY';
+  el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); SFX.level();
+}
+function flash(t) { const el = document.createElement('div'); el.className = 'flash'; el.innerHTML = `<span>${esc(t)}</span>`; $('#fx').appendChild(el); setTimeout(() => el.remove(), 1300); }
+function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 1700); }
+function confetti() {
+  const cv = document.createElement('canvas'); cv.className = 'conf'; cv.width = 1920; cv.height = 1080; $('#fx').appendChild(cv);
+  const ctx = cv.getContext('2d'), cols = ['#ffe600', '#e8112d', '#0b3bff', '#f5f4ef'];
+  const P = Array.from({ length: 200 }, () => ({ x: Math.random() * 1920, y: -Math.random() * 700, vx: (Math.random() - .5) * 6, vy: 4 + Math.random() * 7, s: 10 + Math.random() * 14, c: cols[(Math.random() * 4) | 0] }));
+  const t0 = performance.now();
+  const L = (n) => { ctx.clearRect(0, 0, 1920, 1080); P.forEach((p) => { p.x += p.vx; p.y += p.vy; p.vy += .08; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(.785); ctx.fillStyle = p.c; ctx.fillRect(-p.s / 2, -p.s / 2, p.s, p.s); ctx.restore(); }); if (n - t0 < 4500) requestAnimationFrame(L); else cv.remove(); };
+  requestAnimationFrame(L);
+}
+
+/* ---------- actions ---------- */
+let resetArm = 0;
+function act(a) {
+  if (a === 'start') return startBoot();
+  if (a === 'mute') { S.muted = !S.muted; save(); toast(S.muted ? 'Sound off' : 'Sound on'); $('#c-mute').textContent = S.muted ? 'Sound: off (M)' : 'Sound: on (M)'; const t = $('[data-act="mute"]'); if (t) t.textContent = S.muted ? 'SOUND: OFF' : 'SOUND: ON'; return; }
+  if (a === 'fs') { try { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); } catch (e) {} return; }
+  if (a === 'help') { pinBar(true); return; }
+  if (a === 'score') return scoreboard();
+  if (a === 'again') { S.teams.forEach((t) => (t.xp = 0)); S.hist = []; S.cleared = []; S.hits = []; S.t0 = Date.now(); save(); toast('Scores reset — new game'); return go(2); }
+  if (a === 'restart') { const names = S.teams.map((t) => t.n), m = S.muted; S = fresh(); S.teams.forEach((t, i) => (t.n = names[i])); S.muted = m; save(); return go(0); }
+}
+function ctlTeams() {
+  $('#c-teams').innerHTML = S.teams.map((t, i) => `<button class="tm ${i === S.act ? 'act' : ''}" data-tm="${i}" style="--tc:${tc(i)}">${esc(t.n.replace('TEAM ', ''))} ${t.xp}</button>`).join('');
+  $$('#c-teams [data-tm]').forEach((b) => b.onclick = () => { S.act = +b.dataset.tm; save(); ctlTeams(); hud(); });
+}
+function pinBar(v) { const c = $('#ctl'); const on = v == null ? !c.classList.contains('pin') : v; c.classList.toggle('pin', on); $('#c-pin').textContent = on ? 'Unpin bar (C)' : 'Pin bar (C)'; }
+$('#ctl').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-c]'); if (!b) return;
+  const c = b.dataset.c;
+  ({ back, reveal, next: advance, timer: tToggle, treset: tReset, undo,
+    x50: () => award(S.act, 50, 'bar'), x100: () => award(S.act, 100, 'bar'), x150: () => award(S.act, 150, 'bar'), x200: () => award(S.act, 200, 'bar'), xm50: () => award(S.act, -50, 'bar'),
+    score: () => scoreboard(), mute: () => act('mute'), fs: () => act('fs'), pin: () => pinBar(),
+    reset: () => { if (Date.now() - resetArm > 3000) { resetArm = Date.now(); b.textContent = 'Click again: reset all'; setTimeout(() => (b.textContent = 'Reset'), 3000); return; } b.textContent = 'Reset'; act('restart'); toast('Quest reset'); }
+  }[c] || (() => {}))();
+});
+// After a mouse click on a button, drop its focus so Space/Enter keep driving the game.
+document.addEventListener('click', (e) => { if (e.target.closest && e.target.closest('button')) setTimeout(() => { const a = document.activeElement; if (a && a.tagName === 'BUTTON') a.blur(); }, 0); });
+$('#over').addEventListener('click', () => scoreboard());
+let hideT = 0;
+document.addEventListener('mousemove', (e) => {
+  const c = $('#ctl');
+  if (e.clientY > window.innerHeight - 160) { c.classList.add('show'); clearTimeout(hideT); hideT = setTimeout(() => c.classList.remove('show'), 2500); }
+});
+document.addEventListener('keydown', (e) => {
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.isContentEditable)) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const k = e.key;
+  if (k === ' ' || k === 'PageDown') { e.preventDefault(); advance(); }
+  else if (k === 'ArrowRight') { e.preventDefault(); if (S.step < STEPS.length - 1 && step().k !== 'intro') go(S.step + 1); else advance(); }
+  else if (k === 'ArrowLeft' || k === 'PageUp') { e.preventDefault(); back(); }
+  else if (k === 'Enter') { e.preventDefault(); reveal(); }
+  else if (k === 'f' || k === 'F') act('fs');
+  else if (k === 'm' || k === 'M') act('mute');
+  else if (k === 't' || k === 'T') tToggle();
+  else if (k === 'r' || k === 'R') tReset();
+  else if (k === 's' || k === 'S') scoreboard();
+  else if (k === 'u' || k === 'U') undo();
+  else if (k === 'c' || k === 'C') pinBar();
+  else if (k === 'Escape') { if (overOn) scoreboard(); }
+  else if (/^Digit[123]$/.test(e.code)) { const i = +e.code.slice(5) - 1; S.act = i; ctlTeams(); award(i, e.shiftKey ? 50 : 100, 'key'); }
+});
+
+/* ---------- scale stage to the screen ---------- */
+function fit() { const s = Math.min(innerWidth / 1920, innerHeight / 1080); $('#stage').style.transform = `translate(-50%,-50%) scale(${s})`; }
+addEventListener('resize', fit); fit();
+
+ctlTeams(); $('#c-mute').textContent = S.muted ? 'Sound: off (M)' : 'Sound: on (M)';
+tSet(step().timer || 0); render();
+if (step().k === 'intro') introFX();
+const _go = go; // re-run the typewriter whenever we return to the intro
+go = function (i, p) { _go(i, p); if (step().k === 'intro') introFX(); };
+window.__Q = { S: () => S, go: (i, p) => go(i, p), advance, reveal, back, award, steps: STEPS.length };
+}
+</script>
+</body>
+</html>
