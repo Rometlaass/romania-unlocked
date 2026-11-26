@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0c">
+<title>Romania: Unlocked — Play</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root { --ink:#0a0a0c; --char:#17181d; --y:#ffd60a; --b:#2f6bff; --r:#ff2e3b; --w:#f6f5f0; --mute:#9a9ca8; --tc:#ffd60a; --font:'Chakra Petch','Segoe UI',system-ui,sans-serif; }
+* { box-sizing:border-box; min-width:0; -webkit-tap-highlight-color:transparent; }
+html,body { margin:0; min-height:100%; background:var(--ink); color:var(--w); font-family:var(--font); }
+body { padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); overscroll-behavior:none; }
+button,input { font-family:var(--font); }
+.band { height:22px; background:var(--m-romb) 0 center / 22px 22px repeat-x, var(--ink); }
+header { display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:4px solid var(--tc); }
+header .who { font-weight:700; font-size:17px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+header .team { margin-left:auto; font-size:14px; font-weight:700; color:var(--tc); text-align:right; line-height:1.15; }
+header .team b { display:block; font-size:22px; }
+.st { font-size:12px; padding:6px 16px; color:var(--mute); display:flex; gap:8px; align-items:center; }
+.dot { width:9px; height:9px; transform:rotate(45deg); background:var(--mute); flex:none; }
+.dot.online { background:#00d1a0; } .dot.offline,.dot.nohost { background:var(--r); } .dot.connecting,.dot.reconnecting { background:var(--y); animation:bl 1s infinite; }
+@keyframes bl { 50% { opacity:.3; } }
+main { padding:18px 16px 40px; max-width:560px; margin:0 auto; }
+h1 { font-size:44px; line-height:.92; margin:10px 0 6px; }
+h1 span { color:var(--y); display:block; }
+.lead { color:var(--mute); font-size:16px; margin:0 0 22px; }
+label { display:block; font-size:13px; font-weight:700; color:var(--mute); margin:18px 0 8px; }
+input[type=text] { width:100%; font-size:22px; padding:14px; background:#16171c; color:var(--w); border:3px solid #34353d; outline:none; text-transform:none; }
+input[type=text]:focus { border-color:var(--y); }
+.btn { width:100%; margin-top:18px; font-size:22px; font-weight:700; padding:16px; border:0; background:var(--y); color:var(--ink); box-shadow:6px 6px 0 var(--r); }
+.btn:disabled { opacity:.4; }
+.teams { display:flex; flex-direction:column; gap:10px; }
+.tb { display:flex; align-items:center; gap:12px; width:100%; font-size:19px; font-weight:700; padding:14px; background:transparent; color:var(--w); border:3px solid var(--c); text-align:left; }
+.tb.on { background:var(--c); color:var(--ink); }
+.tb i { width:14px; height:14px; background:var(--c); transform:rotate(45deg); flex:none; }
+.tb.on i { background:var(--ink); }
+.wait { text-align:center; padding-top:30px; }
+.gem { width:120px; height:120px; margin:10px auto 26px; background:var(--m-romb) center / 120px 120px no-repeat; animation:spin 6s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.wait h2 { font-size:30px; margin:0 0 8px; }
+.wait p { color:var(--mute); margin:0; font-size:16px; }
+.label { font-size:13px; font-weight:700; color:var(--y); margin-bottom:6px; }
+.q { font-size:24px; line-height:1.2; font-weight:700; margin:0 0 16px; }
+.opts { display:flex; flex-direction:column; gap:10px; }
+.o { position:relative; display:flex; align-items:center; gap:14px; width:100%; min-height:64px; padding:12px 16px; font-size:20px; font-weight:700; text-align:left; background:#16171c; color:var(--w); border:3px solid #34353d; transition:transform .1s, background .2s; }
+.o:active { transform:scale(.98); }
+.o em { font-style:normal; font-size:24px; width:28px; flex:none; color:var(--y); }
+.o.c1 em { color:#6f9bff; } .o.c2 em { color:var(--r); } .o.c3 em { color:var(--w); } .o.c4 em { color:#ff8a00; } .o.c5 em { color:#00d1a0; }
+.o.sel { background:var(--w); color:var(--ink); border-color:var(--w); }
+.o.sel em { color:var(--ink); }
+.o.ok { background:var(--y); color:var(--ink); border-color:var(--y); }
+.o.ok em { color:var(--ink); }
+.o.no { opacity:.35; }
+.o.sel.no { opacity:1; background:#3a1216; color:var(--w); border-color:var(--r); }
+.o b { margin-left:auto; font-size:16px; }
+.o:disabled { cursor:default; }
+.tbar { height:8px; background:#24252c; margin:0 0 14px; }
+.tbar i { display:block; height:100%; background:var(--y); transition:width .2s linear; }
+.tbar.low i { background:var(--r); }
+.msg { margin-top:16px; padding:14px; font-size:18px; font-weight:700; text-align:center; background:#16171c; }
+.msg.good { background:var(--y); color:var(--ink); } .msg.bad { background:#3a1216; }
+.room { display:flex; gap:10px; }
+.room input { text-transform:uppercase; letter-spacing:.2em; font-weight:700; text-align:center; }
+.foot { margin-top:30px; font-size:12px; color:#5b5d68; text-align:center; }
+.link { background:none; border:0; color:var(--mute); text-decoration:underline; font-size:14px; margin-top:16px; padding:8px; }
+</style>
+</head>
+<body>
+<div class="band"></div>
+<header id="hdr" hidden><div class="who" id="h-name"></div><div class="team" id="h-team"></div></header>
+<div class="st"><span class="dot" id="dot"></span><span id="st">Starting…</span></div>
+<main id="app"></main>
+
+<script src="vendor/peerjs.min.js"></script>
+<script src="js/motifs.js"></script>
+<script src="js/net.js"></script>
+<script>
+{
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+const LET = 'ABCDEFGH';
+document.documentElement.style.setProperty('--m-romb', motifURI('romb', { cell: 6, pad: 1 }));
+
+const params = new URLSearchParams(location.search);
+const local = params.has('local');
+// Local test mode: several "phones" can run as tabs in one browser, so identity is per tab.
+const store = (() => { try { return local ? sessionStorage : localStorage; } catch (e) { return null; } })();
+const KEY = 'ru-player-v1';
+let me = {};
+try { me = JSON.parse(store.getItem(KEY)) || {}; } catch (e) {}
+if (!me.pid) me.pid = 'p' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+const saveMe = () => { try { store.setItem(KEY, JSON.stringify(me)); } catch (e) {} };
+saveMe();
+let room = (location.hash || '').replace('#', '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4);
+let net = null, joined = false, state = null, myVotes = {}, timerAt = 0, view = '';
+
+function setStatus(s) {
+  $('#dot').className = 'dot ' + s;
+  $('#st').textContent = { online: 'Connected · room ' + room, connecting: 'Connecting…', reconnecting: 'Reconnecting…', offline: 'No internet — retrying…', nohost: 'Waiting for the host screen (room ' + room + ')…' }[s] || s;
+  if (s === 'online' && me.name && me.room === room) hello();
+}
+function hello() { net.send({ t: 'hello', pid: me.pid, name: me.name, team: me.team }); }
+function connect() {
+  if (net) return;
+  net = new PlayerNet(room, { local, onStatus: setStatus, onMessage });
+  net.start();
+  setInterval(() => net.send({ t: 'ping', pid: me.pid }), 10000);
+}
+function onMessage(m) {
+  if (!m || typeof m !== 'object') return;
+  if (m.t === 'welcome' && m.you && m.you.pid === me.pid) {
+    me.team = m.you.team; me.name = m.you.name; saveMe(); joined = true; render();
+  } else if (m.t === 'state') {
+    state = m;
+    if (m.poll && m.poll.mine != null) myVotes[m.poll.id] = m.poll.mine;
+    if (m.poll && m.poll.timer) timerAt = Date.now();
+    render();
+  } else if (m.t === 'ack') {
+    myVotes[m.pollId] = m.choice; render();
+  } else if (m.t === 'who') {
+    if (me.name) hello();
+  }
+}
+function myTeam() { return state && state.teams ? state.teams.find((t) => t.id === me.team) : null; }
+function header() {
+  const t = myTeam();
+  const h = $('#hdr');
+  if (!joined) { h.hidden = true; return; }
+  h.hidden = false;
+  document.documentElement.style.setProperty('--tc', t ? t.color : '#ffd60a');
+  $('#h-name').textContent = me.name || '';
+  $('#h-team').innerHTML = t ? `${esc(t.name)}<b>${t.xp} XP</b>` : '';
+}
+
+function render() {
+  header();
+  const app = $('#app');
+  if (!room) return renderRoom(app);
+  if (!me.name || me.room !== room || !joined) return renderJoin(app);
+  if (view === 'team') return renderTeams(app);
+  const p = state && state.poll;
+  if (!p) return renderWait(app);
+  renderPoll(app, p);
+}
+function renderRoom(app) {
+  app.innerHTML = `<h1>ROMANIA<span>UNLOCKED</span></h1><p class="lead">Enter the room code from the big screen.</p>
+    <div class="room"><input type="text" id="room" maxlength="4" autocomplete="off" autocapitalize="characters" placeholder="ABCD"></div>
+    <button class="btn" id="go">CONTINUE</button>`;
+  const go = () => { const v = $('#room').value.toUpperCase().replace(/[^A-Z]/g, ''); if (v.length === 4) { room = v; location.hash = v; connect(); render(); } };
+  $('#go').onclick = go; $('#room').onkeydown = (e) => { if (e.key === 'Enter') go(); };
+}
+function renderJoin(app) {
+  if (app.dataset.v === 'join') return;
+  app.dataset.v = 'join';
+  app.innerHTML = `<h1>ROMANIA<span>UNLOCKED</span></h1><p class="lead">Room <b style="color:var(--y)">${esc(room)}</b> · You'll be placed in a team — you can switch after joining.</p>
+    <label for="nm">YOUR NAME</label><input type="text" id="nm" maxlength="18" autocomplete="nickname" value="${esc(me.name || '')}" placeholder="e.g. Ana">
+    <button class="btn" id="join">JOIN THE GAME</button><div class="foot">No account needed. Your name is only shown on the big screen.</div>`;
+  const go = () => {
+    const v = $('#nm').value.replace(/\s+/g, ' ').trim().slice(0, 18);
+    if (!v) { $('#nm').focus(); return; }
+    me.name = v; me.room = room; saveMe();
+    $('#join').disabled = true; $('#join').textContent = 'JOINING…';
+    hello();
+    setTimeout(() => { if (!joined && $('#join')) { $('#join').disabled = false; $('#join').textContent = 'JOIN THE GAME'; } }, 6000);
+  };
+  $('#join').onclick = go; $('#nm').onkeydown = (e) => { if (e.key === 'Enter') go(); };
+}
+function renderTeams(app) {
+  app.dataset.v = 'teams';
+  const ts = (state && state.teams) || [];
+  app.innerHTML = `<h1 style="font-size:34px">PICK YOUR<span>TEAM</span></h1><div class="teams">${ts.map((t) => `<button class="tb ${t.id === me.team ? 'on' : ''}" style="--c:${t.color}" data-t="${t.id}"><i></i>${esc(t.name)}</button>`).join('')}</div>
+    <button class="btn" id="done">DONE</button>`;
+  app.querySelectorAll('[data-t]').forEach((b) => b.onclick = () => { me.team = b.dataset.t; saveMe(); net.send({ t: 'team', pid: me.pid, team: me.team }); renderTeams(app); });
+  $('#done').onclick = () => { view = ''; render(); };
+}
+function renderWait(app) {
+  app.dataset.v = 'wait';
+  const t = myTeam();
+  app.innerHTML = `<div class="wait"><div class="gem"></div><div class="label">${esc((state && state.label) || 'GET READY')}</div><h2>Eyes on the big screen</h2><p>Voting buttons appear here when a question opens.</p>
+    ${t ? `<button class="link" id="sw">Switch team (now: ${esc(t.name)})</button>` : ''}</div>`;
+  const sw = $('#sw'); if (sw) sw.onclick = () => { view = 'team'; render(); };
+}
+function renderPoll(app, p) {
+  app.dataset.v = 'poll';
+  const mine = myVotes[p.id];
+  const total = p.counts ? p.counts.reduce((a, b) => a + b, 0) : 0;
+  let msg = '';
+  if (p.revealed && p.correct != null) {
+    if (mine == null) msg = '<div class="msg">You didn\'t vote this time.</div>';
+    else if (mine === p.correct) msg = '<div class="msg good">CORRECT! Your team scores.</div>';
+    else msg = '<div class="msg bad">Not this time — the answer is ' + LET[p.correct] + '.</div>';
+  } else if (!p.open) msg = '<div class="msg">' + (mine != null ? 'Vote locked in.' : 'Voting is closed.') + '</div>';
+  else if (mine != null) msg = '<div class="msg">Vote sent — you can still change it.</div>';
+  const tm = p.timer;
+  app.innerHTML = `<div class="label">${esc(state.label || '')}</div>
+    ${tm ? `<div class="tbar" id="tbar"><i></i></div>` : ''}
+    <p class="q">${esc(p.q)}</p>
+    <div class="opts">${p.options.map((o, i) => {
+      let cls = 'o c' + i;
+      if (mine === i) cls += ' sel';
+      if (p.revealed && p.correct != null) cls += i === p.correct ? ' ok' : ' no';
+      const pct = p.counts && total ? Math.round(p.counts[i] / total * 100) + '%' : '';
+      return `<button class="${cls}" data-i="${i}" ${p.open ? '' : 'disabled'}><em>${LET[i]}</em><span>${esc(o)}</span><b>${pct}</b></button>`;
+    }).join('')}</div>${msg}`;
+  app.querySelectorAll('[data-i]').forEach((b) => b.onclick = () => {
+    if (!p.open) return;
+    const i = +b.dataset.i;
+    myVotes[p.id] = i;
+    if (navigator.vibrate) { try { navigator.vibrate(30); } catch (e) {} }
+    net.send({ t: 'answer', pid: me.pid, pollId: p.id, choice: i });
+    renderPoll(app, p);
+  });
+  drawTimer();
+}
+function drawTimer() {
+  const bar = $('#tbar');
+  const p = state && state.poll;
+  if (!bar || !p || !p.timer) return;
+  const el = p.timer.running ? (Date.now() - timerAt) / 1000 : 0;
+  const left = Math.max(0, p.timer.left - el);
+  bar.querySelector('i').style.width = (p.timer.total ? left / p.timer.total * 100 : 0) + '%';
+  bar.classList.toggle('low', left <= 5);
+}
+setInterval(drawTimer, 250);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && net && me.name) { net.send({ t: 'sync', pid: me.pid }); } });
+
+if (room) connect();
+render();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Romania: Unlocked</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,400;0,500;0,600;0,700;1,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/host.css">
+</head>
+<body>
+<div id="viewport">
+  <div id="stage">
+    <div id="screen"></div>
+    <div id="hud" class="hide"></div>
+    <div id="fx"></div>
+    <div id="overlay"></div>
+  </div>
+</div>
+
+<aside id="drawer" aria-label="Host controls">
+  <header><b>HOST CONTROLS</b><button id="d-close" aria-label="Close">✕</button></header>
+  <div class="d-sec">
+    <div class="d-h">NOW</div>
+    <div id="d-pos" class="d-pos"></div>
+    <div class="d-row">
+      <button id="d-prev">◀ Back</button>
+      <button id="d-reveal" class="y">Reveal ⏎</button>
+      <button id="d-next">Next ␣</button>
+    </div>
+    <div class="d-row">
+      <button id="d-skip">Skip step →</button>
+      <button id="d-restart">Restart level</button>
+      <button id="d-map">Map</button>
+    </div>
+  </div>
+  <div class="d-sec">
+    <div class="d-h">COUNTDOWN <span id="d-timer"></span></div>
+    <div class="d-row"><button id="d-tstart">Start / pause (T)</button><button id="d-treset">Reset (R)</button><button id="d-tadd">+10s</button></div>
+  </div>
+  <div class="d-sec">
+    <div class="d-h">TEAMS · click the square to select · keys 1–6</div>
+    <div id="d-teams"></div>
+    <div class="d-row"><input id="d-amt" type="number" value="50" step="10" aria-label="Custom XP"><button id="d-custom">Give to selected</button></div>
+    <div class="d-row"><button id="d-lvlclear">+200 level clear</button><button id="d-part">+50 all (participation)</button></div>
+    <div class="d-row"><button id="d-undo" class="r">Undo last (U)</button><button id="d-addteam">+ Team</button><button id="d-delteam">− Team</button></div>
+  </div>
+  <div class="d-sec">
+    <div class="d-h">JUMP TO LEVEL (works even if locked)</div>
+    <div id="d-levels" class="d-levels"></div>
+    <div class="d-row"><button id="d-unlockall">Unlock all</button></div>
+  </div>
+  <div class="d-sec">
+    <div class="d-h">DISPLAY</div>
+    <div class="d-row"><button id="d-score">Scoreboard (S)</button><button id="d-join">Join screen (J)</button><button id="d-hud">Top bar</button></div>
+    <div class="d-row"><button id="d-mute">Sound (M)</button><button id="d-fs">Fullscreen (F)</button><button id="d-credits">Photo credits</button></div>
+  </div>
+  <div class="d-sec">
+    <div class="d-h">PLAYERS</div>
+    <div id="d-players" class="d-small"></div>
+    <div class="d-row"><button id="d-newroom">New room code</button></div>
+  </div>
+  <div class="d-sec">
+    <div class="d-h">PRESENTER NOTES</div>
+    <pre id="d-notes" class="d-notes"></pre>
+  </div>
+  <div class="d-sec">
+    <div class="d-h">SHORTCUTS</div>
+    <div class="d-small">Space next · ← → navigate · Enter reveal · T timer · R reset timer · S scoreboard · J join · H this panel · F fullscreen · M mute · U undo · 1–6 select team · + / − give/take XP · Esc close</div>
+  </div>
+  <div class="d-sec">
+    <button id="d-reset" class="danger">Reset entire game</button>
+  </div>
+</aside>
+<div id="toast"></div>
+
+<script src="vendor/peerjs.min.js"></script>
+<script src="vendor/qrcode.js"></script>
+<script src="js/content.js"></script>
+<script src="js/motifs.js"></script>
+<script src="js/net.js"></script>
+<script src="js/host.js"></script>
+</body>
+</html>
