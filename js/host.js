@@ -112,6 +112,8 @@ function onNetMessage(tid, msg) {
       save();
       net.send(tid, { t: 'ack', pollId: poll.id, choice: msg.choice });
       updatePollUI();
+    } else {
+      net.send(tid, stateMsg(pid)); // stale or closed question: resync this phone
     }
   } else if (msg.t === 'team') {
     if (S.teams.find((t) => t.id === msg.team)) { S.players[pid].team = msg.team; save(); net.send(tid, { t: 'welcome', you: { pid, ...S.players[pid] } }); refreshJoinBits(); }
@@ -259,7 +261,7 @@ setInterval(() => Timer.tick(), 100);
 const timerHTML = (big) => `<div class="timer ${big ? 'big' : ''}"><svg viewBox="0 0 100 100"><circle class="t-bg" cx="50" cy="50" r="44"/><circle class="t-fg" cx="50" cy="50" r="44" pathLength="100"/></svg><span class="t-n"></span><span class="t-k">${'T = start / pause'}</span></div>`;
 
 /* ================= UI HELPERS ================= */
-const joinURL = () => { const u = new URL('play.html', location.href); u.hash = S.room; return u.href; };
+const joinURL = () => { const u = new URL('play.html', location.href); u.search = ''; const ps = new URLSearchParams(location.search).get('ps'); if (ps) u.searchParams.set('ps', ps); u.hash = S.room; return u.href; };
 function qrSVG(text, cell = 8) {
   try { const q = qrcode(0, 'M'); q.addData(text); q.make(); return q.createSvgTag({ cellSize: cell, margin: 2, scalable: true }); } catch (e) { return ''; }
 }
@@ -1115,5 +1117,5 @@ bindDrawer();
 startNet();
 if (S.pos.screen === 'level') { enterStep(); } else { if (S.pos.screen !== 'intro') render(); else render(); }
 renderHud();
-window.__RU = { S: () => S, go, advance, reveal, next, prev, enterLevel, addXP, undo, poll: () => poll };
+window.__RU = { net: () => netStatus, online: () => onlinePids().size, S: () => S, go, advance, reveal, next, prev, enterLevel, addXP, undo, poll: () => poll };
 })();

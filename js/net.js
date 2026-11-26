@@ -5,6 +5,15 @@
 
 const NET_PREFIX = 'romania-unlocked-v1-';
 
+/* Optional self-hosted PeerJS server: add ?ps=host:port to the URL (used for load testing).
+   Without it, the free public PeerJS cloud server is used. */
+function peerOpts() {
+  const ps = new URLSearchParams(location.search).get('ps');
+  if (!ps) return { debug: 0 };
+  const [host, port] = ps.split(':');
+  return { host, port: +port || 9000, path: '/', secure: location.protocol === 'https:', debug: 0 };
+}
+
 function makeRoomCode() {
   const A = 'ABCDEFGHJKMNPQRSTUVWXYZ';
   let s = '';
@@ -37,7 +46,7 @@ class HostNet {
   _peer() {
     this._set('connecting');
     let peer;
-    try { peer = new Peer(NET_PREFIX + this.room.toLowerCase(), { debug: 0 }); }
+    try { peer = new Peer(NET_PREFIX + this.room.toLowerCase(), peerOpts()); }
     catch (e) { this._set('offline'); return; }
     this.peer = peer;
     peer.on('open', () => { this.tries = 0; this._set('online'); });
@@ -108,7 +117,7 @@ class PlayerNet {
   }
   _peer() {
     this.onStatus('connecting');
-    try { this.peer = new Peer({ debug: 0 }); } catch (e) { this.onStatus('offline'); return; }
+    try { this.peer = new Peer(peerOpts()); } catch (e) { this.onStatus('offline'); return; }
     this.peer.on('open', () => this._connect());
     this.peer.on('error', (err) => {
       const t = err && err.type;
