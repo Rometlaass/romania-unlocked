@@ -209,9 +209,9 @@ button { font-family:inherit; }
 /* ===== 6 · BUCHAREST MAP ===== */
 .map .lbl { position:absolute; left:120px; top:120px; }
 .mapbox { position:absolute; left:50px; top:160px; width:1140px; height:860px; }
-.mapbox svg { width:100%; height:100%; overflow:visible; }
+.mapbox > svg { width:100%; height:100%; overflow:visible; }
 #lmap { position:absolute; inset:0; background:#0d0d10; border:1px solid var(--line); }
-#lmap .leaflet-tile-pane { filter:saturate(.2) brightness(.9) contrast(1.1); }
+#lmap .leaflet-tile-pane { filter:brightness(1.25) contrast(1.05); }
 .m-tip { background:rgba(8,8,11,.85); border:0; border-radius:0; box-shadow:none; color:#f1efe9; font-family:var(--f-mono); font-size:15px; padding:3px 7px; letter-spacing:.02em; }
 .m-tip.c { color:#39e5d0; background:rgba(8,8,11,.6); }
 .m-tip::before { display:none; }
@@ -617,7 +617,7 @@ const SOURCES = [
   ['Europa Liberă România — “Poluarea care nu se vede, dar se aude”', 'Noise-mapping engineer B. Lazarovici names Bd. Iuliu Maniu and Bd. Nicolae Grigorescu as boulevards with frequent exceedances.', 'https://romania.europalibera.org/a/32120072.html'],
   ['Bucharest noise map by address (summary of the city’s 2023 strategic noise map and action plan)', 'Action-plan thresholds for large streets: 70 dB (24 h) and 60 dB (night). Quiet zones: Văcărești Natural Park, Carol I Park, Tineretului Park.', 'https://mariuscomper.uk/harta-zgomotului-bucuresti/en/'],
   ['European Environment Agency — exposure of Europe’s population to noise; WHO guideline values', 'Road traffic is the primary source of noise across Europe. WHO recommends road traffic below 53 dB Lden and 45 dB at night.', 'https://www.eea.europa.eu/ims/exposure-of-europe-population-to-noise'],
-  ['OpenStreetMap contributors (ODbL) · basemap © CARTO', 'Street and park shapes on the Bucharest map; red lines = boulevards named in the sources above, cyan = the quiet zones listed in the action plan.', 'https://www.openstreetmap.org/copyright'],
+  ['OpenStreetMap contributors (ODbL) · basemap: Esri World Dark Gray', 'Street and park shapes on the Bucharest map; red lines = boulevards named in the sources above, cyan = the quiet zones listed in the action plan.', 'https://www.openstreetmap.org/copyright'],
   ['European Environment Agency — Romania noise fact sheet 2022', 'Official Romanian data reported under the Environmental Noise Directive (rounds 2012, 2017, 2022).', 'https://www.eea.europa.eu/en/analysis/maps-and-charts/romania-noise-fact-sheet-2022'],
   ['Euronews România (2025) — Bucharest noise monitoring', 'Bucharest City Hall announced noise monitoring through 30 measuring stations as part of its new noise plan.', 'https://www.euronews.ro/articole/nivelul-de-zgomot-din-bucuresti-monitorizat-prin-30-de-statii-de-masurare-anuntul'],
   ['Romania Insider / Spotmedia (June 2026) — Happy City Index 2026', 'Bucharest placed 247th of 251 cities. A quality-of-life index (governance, economy, environment, mobility, health, satisfaction) — not a noise ranking.', 'https://www.romania-insider.com/bucharest-unhappy-cities-world-study-june-2026']
@@ -934,7 +934,7 @@ function mapFX(rv) {
   if (LMAP) { try { LMAP.remove(); } catch (e) {} LMAP = null; }
   const LF = window.L;
   LMAP = LF.map(el, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false, zoomSnap: .25 });
-  LF.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19, crossOrigin: true }).addTo(LMAP);
+  LF.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16 }).addTo(LMAP);
   const all = [];
   Object.entries(GEO.parks).forEach(([n, rings]) => rings.forEach((r) => { const pts = decPoly(r); all.push(...pts);
     LF.polygon(pts, { color: '#39e5d0', weight: 2, dashArray: '4 6', fillColor: '#39e5d0', fillOpacity: .22, className: 'm-park' }).on('click', () => hear('quiet', n)).addTo(LMAP)
@@ -952,7 +952,7 @@ function mapFX(rv) {
 function mapHTML(rv, A2) {
   return `<div class="pg map ${rv ? 'rv' : ''}">
     <div class="lbl">04 · <b>Bucharest: the noise map</b></div>
-    <div class="mapbox ${A2}">${window.L && window.L.map ? `<div id="lmap"></div><div class="m-info" id="minfo"><small>CLICK A STREET OR A PARK</small><b>Red = loud. Cyan = quiet.</b><p>Every red line is a boulevard named in Bucharest’s own noise plans. The cyan areas are the city’s official quiet zones.</p></div><div class="m-legend"><button data-hear="loud"><i class="lg-r"></i>▶ HEAR A BOULEVARD</button><button data-hear="quiet"><i class="lg-c"></i>▶ HEAR A QUIET ZONE</button></div><div class="m-attr">© OpenStreetMap contributors © CARTO · streets & parks from OpenStreetMap</div>` : mapSVG()}</div>
+    <div class="mapbox ${A2}">${window.L && window.L.map ? `<div id="lmap"></div><div class="m-info" id="minfo"><small>CLICK A STREET OR A PARK</small><b>Red = loud. Cyan = quiet.</b><p>Every red line is a boulevard named in Bucharest’s own noise plans. The cyan areas are the city’s official quiet zones.</p></div><div class="m-legend"><button data-hear="loud"><i class="lg-r"></i>▶ HEAR A BOULEVARD</button><button data-hear="quiet"><i class="lg-c"></i>▶ HEAR A QUIET ZONE</button></div><div class="m-attr">Basemap © Esri, HERE, Garmin, © OpenStreetMap contributors · streets & parks: OpenStreetMap</div>` : mapSVG()}</div>
     <div class="stats">
       <div class="stat"><b>228</b><p>zones over the legal limits — 70 dB by day, 60 dB at night</p><small>Bucharest noise action plan (2017), as summarised by the World Bank, 2019</small></div>
       <div class="stat"><b>59</b><p>streets over the night-time limit</p><small>Bucharest City Hall, 2022</small></div>
