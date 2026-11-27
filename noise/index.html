@@ -6,8 +6,6 @@
 <title>Sound On / Romania Off? — Noise Pollution in Romania</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Instrument+Serif:ital@0;1&family=Unbounded:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
 /* SOUND ON / ROMANIA OFF? — a 5-minute live audiovisual story about noise pollution in Romania
@@ -1122,6 +1120,9 @@ function fit() { const s = Math.min(innerWidth / 1920, innerHeight / 1080); $('#
 addEventListener('resize', fit); fit();
 $('#c-mute').textContent = S.muted ? 'Unmute (M)' : 'Mute (M)';
 tSet(step().timer || 0); render(); preload(); recStatus();
+// the map library loads in the background; until it arrives (or if offline) the map slide uses the built-in schematic
+(() => { const c = document.createElement('link'); c.rel = 'stylesheet'; c.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'; document.head.appendChild(c);
+  const j = document.createElement('script'); j.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'; j.async = true; j.onload = () => { if (step().k === 'map') { first = false; render(); } }; document.head.appendChild(j); })();
 window.__N = { S: () => S, go, advance, reveal, back, steps: STEPS.length, rec: () => Object.fromEntries(Object.keys(REC).map((k) => [k, BUF[k] ? 'ok' : RAW[k] ? 'downloaded' : String(BUF[k])])), layers: () => Object.keys(L).map((n) => n + (L[n].rec ? ':rec' : ':synth')) };
 }
 </script>
