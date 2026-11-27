@@ -936,7 +936,7 @@ const SCENES = {
   fridge: { street: 'Strada Doctor Joseph Lister', geo: ['m`enG_~c~CMImFuDcBqA', 'opdnGyqc~CkI}F', '{zdnGwyc~CaD{BOK'], label: 'FRIDGE', mix: { fridge: 1 }, t: 'Just the fridge', p: 'Night, windows closed. The loudest thing left is the kitchen.', snd: 'Sound scene: a fridge humming' },
   yell: { street: 'Strada Armenească', geo: ['}{enGanj~CWUqAgAMGI?KBWF', '}nfnGq~j~Cm@Cc@CqBMY@}@Zm@Rc@Pq@G', 'acfnGmxj~CgD}AsB_AeA_@YE', 'c|fnGm|j~Cs@?gBB'], label: 'NEIGHBOUR', mix: { yell: 1, fridge: .35 }, t: '…then the neighbour', p: 'A quiet street can still be loud indoors. Noise isn’t only traffic.', snd: 'Sound scene: shouting through the wall' }
 };
-const RDIR = { 'Bulevardul Unirii': 'top', 'Bulevardul Națiunile Unite': 'left', 'Bulevardul Tineretului': 'right', 'Bulevardul Iuliu Maniu': 'top', 'Bulevardul Constantin Brâncoveanu': 'right' };
+const RDIR = { 'Bulevardul Unirii': 'bottom', 'Bulevardul Națiunile Unite': 'bottom', 'Bulevardul Tineretului': 'right', 'Bulevardul Iuliu Maniu': 'top', 'Bulevardul Constantin Brâncoveanu': 'right' };
 const PDIR = { 'Parcul Carol': 'left', 'Parcul Tineretului': 'bottom', 'Parcul Natural Văcărești': 'right' };
 function hear(kind, name) {
   if (!aInit()) return toast('Audio not available — the map still works');
@@ -972,7 +972,7 @@ function mapFX(rv) {
     sc.geo.forEach((g) => { const pts = decPoly(g); if (!mid) mid = pts[Math.floor(pts.length / 2)];
       LF.polyline(pts, { color: '#9cf26b', weight: 6, opacity: .95, lineCap: 'round' }).on('click', () => hear(k)).addTo(LMAP); });
     LF.circleMarker(mid, { radius: 11, color: '#9cf26b', weight: 3, fillColor: '#9cf26b', fillOpacity: .35, className: 'm-scene' }).on('click', () => hear(k)).addTo(LMAP)
-      .bindTooltip(sc.label, { permanent: true, direction: k === 'fridge' ? 'left' : 'right', offset: k === 'fridge' ? [-12, 0] : [12, 0], className: 'm-tip g' }); });
+      .bindTooltip(sc.label, { permanent: true, direction: { fridge: 'left', yell: 'top', birds: 'right' }[k], offset: { fridge: [-14, 0], yell: [0, -14], birds: [14, 0] }[k], className: 'm-tip g' }); });
   $$('[data-hear]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); hear(b.dataset.hear); });
 }
 function mapHTML(rv, A2) {
