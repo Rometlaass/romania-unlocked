@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sound On / Romania Off? — Noise Pollution in Romania</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Instrument+Serif:ital@0;1&family=Unbounded:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+/* SOUND ON / ROMANIA OFF? — a 5-minute live audiovisual story about noise pollution in Romania
+   VOICE  a signal that starts as interference and ends as silence
+   LOOK   black broadcast space, signal-red + white ridge-line waveforms, glitch; resolves into calm cyan, then paper-white silence
+   TYPE   Unbounded (signal / shouting) · IBM Plex Mono (data, labels) · Instrument Serif italic (the human voice)
+   SOUND  synthesized live with WebAudio (no files): traffic, horns, trams, construction, aircraft, industry */
+:root { --bg:#08080b; --ink:#f1efe9; --dim:rgba(241,239,233,.55); --red:#ff3a2e; --amb:#ffb000; --cy:#39e5d0; --line:rgba(241,239,233,.16);
+  --f-sig:'Unbounded','Arial Black',sans-serif; --f-mono:'IBM Plex Mono',ui-monospace,monospace; --f-voice:'Instrument Serif',Georgia,serif; }
+* { box-sizing:border-box; min-width:0; }
+html,body { margin:0; height:100%; background:#000; color:var(--ink); font-family:var(--f-mono); overflow:hidden; }
+button { font-family:inherit; }
+#stage { position:absolute; left:50%; top:50%; width:1920px; height:1080px; transform-origin:center; overflow:hidden; background:var(--bg); color:var(--ink); transition:background 3s ease, color 3s ease; }
+#viz { position:absolute; inset:0; width:1920px; height:1080px; transition:opacity 1s; }
+#stage::after { content:''; position:absolute; inset:0; pointer-events:none; z-index:85; background:repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0 1px, transparent 1px 3px); mix-blend-mode:overlay; }
+#screen { position:absolute; inset:0; z-index:5; }
+.pg { position:absolute; inset:0; }
+@keyframes up { from { opacity:0; transform:translateY(40px); } }
+@keyframes fade { from { opacity:0; } }
+@keyframes blink { 50% { opacity:.15; } }
+.in { animation:up .8s cubic-bezier(.2,.8,.2,1) both; }
+.d1 { animation-delay:.15s; } .d2 { animation-delay:.3s; } .d3 { animation-delay:.45s; } .d4 { animation-delay:.6s; } .d5 { animation-delay:.75s; }
+.lbl { font-family:var(--f-mono); font-size:20px; letter-spacing:.22em; text-transform:uppercase; color:var(--dim); }
+.lbl b { color:var(--red); font-weight:600; }
+.voice { font-family:var(--f-voice); font-style:italic; font-weight:400; }
+.src { font-size:16px; line-height:1.45; color:var(--dim); letter-spacing:.02em; }
+.src i { font-style:normal; color:var(--ink); }
+
+/* glitch headings */
+.gl { position:relative; display:inline-block; }
+.gl::before, .gl::after { content:attr(data-t); position:absolute; left:0; top:0; width:100%; pointer-events:none; mix-blend-mode:screen; }
+.gl::before { color:var(--red); animation:g1 2.6s infinite steps(1); }
+.gl::after { color:var(--cy); animation:g2 1.9s infinite steps(1); }
+@keyframes g1 { 0%,100% { transform:translate(-5px,0); clip-path:inset(0 0 70% 0); } 20% { transform:translate(6px,-2px); clip-path:inset(40% 0 30% 0); } 40% { transform:translate(-3px,1px); clip-path:inset(75% 0 2% 0); } 60% { transform:translate(0); clip-path:inset(100% 0 0 0); } }
+@keyframes g2 { 0%,100% { transform:translate(5px,0); clip-path:inset(60% 0 0 0); } 30% { transform:translate(-6px,2px); clip-path:inset(10% 0 70% 0); } 55% { transform:translate(0); clip-path:inset(100% 0 0 0); } 80% { transform:translate(3px,0); clip-path:inset(30% 0 45% 0); } }
+.calm .gl::before, .calm .gl::after { display:none; }
+
+/* HUD */
+#hud { position:absolute; left:0; right:0; top:0; height:78px; z-index:40; display:flex; align-items:center; gap:30px; padding:0 40px; pointer-events:none; transition:opacity .6s; }
+#hud.off { opacity:0; }
+.h-t { font-family:var(--f-sig); font-weight:700; font-size:17px; letter-spacing:.06em; white-space:nowrap; }
+.h-t b { color:var(--red); font-weight:700; }
+.prog { flex:1; display:flex; gap:8px; }
+.seg { flex:1; }
+.seg i { display:block; height:4px; background:var(--line); position:relative; overflow:hidden; }
+.seg i::after { content:''; position:absolute; inset:0; width:var(--p,0%); background:currentColor; transition:width .6s; }
+.seg span { display:block; margin-top:8px; font-size:13px; letter-spacing:.14em; color:var(--dim); white-space:nowrap; }
+.seg.cur span { color:var(--red); } .seg.cur i::after { background:var(--red); }
+.calm .seg.cur span { color:var(--cy); } .calm .seg.cur i::after { background:var(--cy); }
+.seg small { margin-left:8px; opacity:.7; display:none; } .seg.cur small { display:inline; }
+.clock { font-family:var(--f-sig); font-size:24px; width:96px; text-align:right; }
+.clock.late { color:var(--red); }
+.h-snd { font-size:13px; letter-spacing:.14em; color:var(--dim); width:140px; text-align:right; }
+.h-snd.off { color:var(--red); }
+
+/* countdown */
+.cd { position:absolute; width:150px; height:150px; cursor:pointer; z-index:20; }
+.cd svg { width:100%; height:100%; transform:rotate(-90deg); }
+.cd circle { fill:none; }
+.cd .bg { stroke:var(--line); stroke-width:3; } .cd .fg { stroke:var(--red); stroke-width:5; stroke-dasharray:100; stroke-dashoffset:calc(100 - var(--f,1)*100); transition:stroke-dashoffset .1s linear; }
+.cd b { position:absolute; inset:0; display:grid; place-items:center; font-family:var(--f-sig); font-weight:700; font-size:54px; }
+.cd small { position:absolute; left:-60px; right:-60px; top:100%; margin-top:10px; text-align:center; font-size:13px; letter-spacing:.14em; color:var(--dim); }
+.cd.run small { visibility:hidden; }
+.cd.low b { color:var(--red); animation:blink .5s infinite; }
+.cd.end b { color:var(--red); }
+.rv .cd { display:none; }
+
+/* channel-switch wipe between sections */
+#wipe { position:absolute; inset:0; z-index:70; pointer-events:none; opacity:0; background:repeating-linear-gradient(0deg, rgba(255,255,255,.18) 0 2px, rgba(0,0,0,.6) 2px 5px), #111; }
+#wipe.on { animation:wipe .55s steps(6) both; }
+@keyframes wipe { 0% { opacity:0; transform:scaleY(.02); } 20% { opacity:1; transform:scaleY(1); } 60% { opacity:.9; background-position:0 40px; } 100% { opacity:0; transform:scaleY(1); } }
+.flash { position:absolute; inset:0; display:grid; place-items:center; pointer-events:none; z-index:72; animation:fl 1.1s both; }
+.flash span { font-family:var(--f-sig); font-weight:900; font-size:150px; color:var(--red); letter-spacing:-.02em; }
+@keyframes fl { 0% { opacity:0; transform:scale(1.3); } 12%,70% { opacity:1; transform:scale(1); } 100% { opacity:0; } }
+
+/* ===== 0 · INTRO ===== */
+.intro { display:flex; flex-direction:column; justify-content:center; padding:0 150px; background:radial-gradient(ellipse at 50% 60%, rgba(8,8,11,.2), rgba(8,8,11,.92) 70%); }
+.intro .lbl { margin-bottom:34px; }
+.t-big { margin:0; font-family:var(--f-sig); font-weight:900; font-size:250px; line-height:.86; letter-spacing:-.04em; }
+.t-out { display:block; margin-top:18px; font-family:var(--f-sig); font-weight:900; font-size:118px; line-height:1; letter-spacing:-.02em; color:transparent; -webkit-text-stroke:2px var(--ink); }
+.t-out b { -webkit-text-stroke:2px var(--red); font-weight:900; }
+.intro .voice { margin-top:46px; font-size:58px; line-height:1.15; max-width:1300px; }
+.go { margin-top:56px; align-self:flex-start; background:none; border:2px solid var(--ink); color:var(--ink); font-size:22px; letter-spacing:.2em; padding:20px 30px; cursor:pointer; display:flex; gap:18px; align-items:center; }
+.go:hover { background:var(--ink); color:var(--bg); }
+.go i { width:14px; height:14px; border-radius:50%; background:var(--red); animation:blink 1s infinite; }
+.tools { position:absolute; right:60px; bottom:50px; display:flex; gap:10px; }
+.tool { background:none; border:1px solid var(--line); color:var(--dim); font-size:14px; letter-spacing:.12em; padding:10px 14px; cursor:pointer; }
+.tool:hover { color:var(--ink); border-color:var(--ink); }
+
+/* ===== 1 · LISTEN ===== */
+.listen h2 { position:absolute; left:120px; right:120px; top:170px; margin:0; font-family:var(--f-sig); font-weight:900; font-size:118px; line-height:.95; letter-spacing:-.03em; }
+.slots { position:absolute; left:120px; right:120px; top:560px; display:grid; grid-template-columns:repeat(4,1fr); gap:24px; }
+.slot { height:250px; border:1px solid var(--line); background:rgba(8,8,11,.7); position:relative; overflow:hidden; perspective:800px; }
+.slot .q { position:absolute; inset:0; display:grid; place-items:center; font-family:var(--f-sig); font-weight:900; font-size:150px; color:var(--line); animation:blink 1.3s infinite; }
+.slot:nth-child(2) .q { animation-delay:.3s; } .slot:nth-child(3) .q { animation-delay:.6s; } .slot:nth-child(4) .q { animation-delay:.9s; }
+.slot .meter { position:absolute; left:20px; right:20px; bottom:20px; height:44px; display:flex; gap:4px; align-items:flex-end; }
+.slot .meter i { flex:1; background:var(--red); opacity:.75; animation:lev var(--sp,.4s) ease-in-out infinite alternate; transform-origin:bottom; }
+@keyframes lev { from { transform:scaleY(.12); } to { transform:scaleY(1); } }
+.slot .a { position:absolute; inset:0; padding:28px; display:flex; flex-direction:column; justify-content:space-between; animation:flip .7s cubic-bezier(.2,.8,.2,1) both; animation-delay:var(--dl,0s); background:var(--ink); color:var(--bg); }
+@keyframes flip { from { transform:rotateX(90deg); opacity:0; } }
+.slot .a small { font-size:16px; letter-spacing:.2em; }
+.slot .a b { font-family:var(--f-sig); font-weight:900; font-size:36px; line-height:1; letter-spacing:-.02em; }
+.listen .cd { right:120px; top:330px; }
+.listen .sub { position:absolute; left:120px; right:120px; top:880px; font-size:50px; line-height:1.2; animation:up .8s 1.6s both; }
+.listen .sub b { font-family:var(--f-sig); font-style:normal; font-weight:700; font-size:34px; color:var(--red); letter-spacing:.02em; display:block; margin-bottom:10px; }
+.listen .hint { position:absolute; left:120px; top:880px; font-size:22px; letter-spacing:.2em; color:var(--dim); }
+
+/* ===== votes (shared) ===== */
+.opts { display:grid; gap:20px; }
+.opt { position:relative; border:1px solid var(--line); background:rgba(8,8,11,.78); padding:26px 28px; cursor:pointer; transition:opacity .5s, transform .5s, background .4s, border-color .4s; display:flex; gap:24px; align-items:center; }
+.opt:hover { border-color:var(--ink); }
+.opt em { font-style:normal; font-family:var(--f-sig); font-weight:900; font-size:64px; line-height:1; color:var(--red); width:62px; flex:none; }
+.opt span { font-family:var(--f-sig); font-weight:700; font-size:36px; line-height:1.08; letter-spacing:-.01em; }
+.opt .pick { position:absolute; right:14px; top:12px; font-size:13px; letter-spacing:.2em; background:var(--amb); color:var(--bg); padding:3px 8px; display:none; }
+.opt.picked .pick { display:block; }
+.opt.picked { border-color:var(--amb); }
+.rv .opt.no { opacity:.18; transform:scale(.97); }
+.rv .opt.ok { background:var(--red); border-color:var(--red); transform:scale(1.03); }
+.rv .opt.ok em { color:var(--ink); }
+.qh { margin:0; font-family:var(--f-sig); font-weight:900; font-size:76px; line-height:1; letter-spacing:-.03em; }
+
+/* ===== 2 · SOURCE GAME ===== */
+.game .lbl { position:absolute; left:120px; top:120px; }
+.game .qh { position:absolute; left:120px; right:420px; top:170px; }
+.game .cd { right:140px; top:150px; }
+.scene { position:absolute; left:0; right:0; top:370px; height:330px; }
+.scene svg { width:100%; height:100%; overflow:visible; }
+.scene .el { transition:opacity .6s; }
+.rv .scene .el.x { opacity:.12; }
+.scene .car { animation:drive var(--d,3s) linear infinite; animation-delay:var(--dl,0s); }
+@keyframes drive { from { transform:translateX(-300px); } to { transform:translateX(2200px); } }
+.scene .car.r { animation-name:driveR; }
+@keyframes driveR { from { transform:translateX(2200px); } to { transform:translateX(-300px); } }
+.rv .scene .car rect { fill:var(--red); }
+.scene .bird { animation:flap 1.2s ease-in-out infinite alternate; transform-box:fill-box; transform-origin:center; }
+@keyframes flap { to { transform:scaleY(.4); } }
+.scene .wind { stroke-dasharray:40 400; animation:windA 3.5s linear infinite; }
+@keyframes windA { to { stroke-dashoffset:-440; } }
+.game .opts { position:absolute; left:120px; right:120px; top:740px; grid-template-columns:repeat(4,1fr); }
+.game .opt { height:200px; flex-direction:column; align-items:flex-start; justify-content:space-between; }
+.verdict { position:absolute; left:120px; right:120px; bottom:40px; font-size:20px; animation:up .6s .4s both; }
+.verdict b { color:var(--ink); font-weight:600; }
+
+/* ===== 3 · MIXER ===== */
+.mixer .lbl { position:absolute; left:120px; top:120px; }
+.mixer .qh { position:absolute; left:120px; top:168px; font-size:92px; }
+.mixer .qh small { display:block; margin-top:16px; font-family:var(--f-voice); font-style:italic; font-weight:400; font-size:46px; letter-spacing:0; color:var(--dim); }
+.desk { position:absolute; left:120px; right:120px; top:420px; height:500px; display:grid; grid-template-columns:repeat(5,1fr); gap:22px; }
+.ch { position:relative; border:1px solid var(--line); background:rgba(8,8,11,.8); cursor:pointer; padding:22px; display:flex; flex-direction:column; transition:border-color .3s, background .3s; animation:up .7s both; }
+.ch:nth-child(2) { animation-delay:.1s; } .ch:nth-child(3) { animation-delay:.2s; } .ch:nth-child(4) { animation-delay:.3s; } .ch:nth-child(5) { animation-delay:.4s; }
+.ch:hover, .ch.on { border-color:var(--red); }
+.ch.on { background:rgba(255,58,46,.12); }
+.ch .no { font-size:14px; letter-spacing:.2em; color:var(--dim); }
+.ch .bars { flex:1; display:flex; gap:6px; align-items:flex-end; margin:18px 0; }
+.ch .bars i { flex:1; height:100%; background:linear-gradient(to top, var(--ink) 0 60%, var(--amb) 60% 82%, var(--red) 82%); animation:lev var(--sp,.5s) ease-in-out infinite alternate; transform-origin:bottom; opacity:.85; }
+.ch.main .bars i { animation-name:levHi; }
+@keyframes levHi { from { transform:scaleY(.45); } to { transform:scaleY(1); } }
+.ch .bars i { --lo:.08; }
+.ch b { font-family:var(--f-sig); font-weight:700; font-size:30px; line-height:1.05; }
+.ch .pl { margin-top:12px; font-size:15px; letter-spacing:.16em; color:var(--dim); }
+.ch.on .pl { color:var(--red); }
+.ch .tag { position:absolute; right:-1px; top:-1px; background:var(--red); color:var(--ink); font-size:13px; letter-spacing:.16em; padding:5px 10px; }
+.mixer .src { position:absolute; left:120px; right:120px; bottom:44px; }
+
+/* ===== 4 · PEOPLE ===== */
+.people .lbl { position:absolute; left:120px; top:120px; }
+.people .qh { position:absolute; left:120px; right:420px; top:168px; font-size:92px; }
+.people .cd { right:140px; top:150px; }
+.ppl { position:absolute; left:120px; right:120px; top:400px; height:520px; display:grid; grid-template-columns:repeat(3,1fr); gap:26px; }
+.ppl .opt { flex-direction:column; align-items:stretch; padding:0; gap:0; overflow:hidden; }
+.ppl .opt .top { display:flex; justify-content:space-between; align-items:baseline; padding:20px 24px 0; }
+.ppl .opt .top em { font-size:46px; width:auto; }
+.ppl .opt .tm { font-family:var(--f-sig); font-size:36px; font-weight:400; color:var(--dim); }
+.ppl .art { height:230px; padding:6px 24px; color:var(--ink); }
+.ppl .art svg { width:100%; height:100%; }
+.ppl .who { padding:0 24px; font-family:var(--f-sig); font-weight:700; font-size:32px; line-height:1.05; }
+.ppl .thought { padding:14px 24px 0; font-family:var(--f-voice); font-style:italic; font-size:34px; line-height:1.15; color:var(--dim); }
+.ppl .hit { margin:auto 24px 24px; padding-top:14px; border-top:1px solid var(--line); font-size:18px; letter-spacing:.16em; color:var(--red); animation:up .5s .3s both; }
+.rv .ppl .opt { opacity:1; transform:none; background:rgba(8,8,11,.85); border-color:var(--line); }
+.rv .ppl .opt.picked { border-color:var(--amb); }
+.ppl .zz { animation:blink 1.6s infinite; }
+.people .all { position:absolute; left:120px; right:120px; top:168px; margin:0; font-family:var(--f-sig); font-weight:900; font-size:80px; line-height:1; letter-spacing:-.03em; animation:up .6s both; }
+.people .all span { color:var(--red); }
+.people .src { position:absolute; left:120px; right:120px; bottom:44px; }
+.people .src .voice { font-size:30px; color:var(--ink); }
+
+/* ===== 5 · CROWD ===== */
+.crowd .lbl { position:absolute; left:120px; top:120px; }
+.crowd .qh { position:absolute; left:120px; right:120px; top:168px; font-size:74px; }
+#dots { position:absolute; left:160px; top:340px; width:1600px; height:650px; }
+.crowd .ask { position:absolute; left:120px; top:996px; font-family:var(--f-voice); font-style:italic; font-size:44px; color:var(--dim); }
+.big-n { position:absolute; left:120px; top:158px; font-family:var(--f-sig); font-weight:900; font-size:118px; line-height:1; letter-spacing:-.04em; }
+.big-n small { display:block; font-family:var(--f-mono); font-weight:400; font-size:22px; letter-spacing:.2em; margin-top:4px; color:var(--dim); }
+.night-n { position:absolute; right:120px; top:180px; text-align:right; font-family:var(--f-sig); font-weight:700; font-size:64px; color:var(--red); opacity:0; transition:opacity .8s; }
+.night-n small { display:block; font-family:var(--f-mono); font-weight:400; font-size:22px; letter-spacing:.2em; color:var(--dim); margin-top:8px; }
+.night-n.on { opacity:1; }
+.crowd .key { position:absolute; left:160px; top:1004px; font-size:18px; letter-spacing:.14em; color:var(--dim); }
+.crowd .key i { display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--ink); margin-right:10px; }
+.crowd .src { position:absolute; left:560px; right:120px; top:996px; font-size:15px; }
+
+/* ===== 6 · BUCHAREST MAP ===== */
+.map .lbl { position:absolute; left:120px; top:120px; }
+.mapbox { position:absolute; left:50px; top:160px; width:1140px; height:860px; }
+.mapbox svg { width:100%; height:100%; overflow:visible; }
+.mapbox .st { cursor:pointer; }
+.mapbox .st .glow { stroke:var(--red); stroke-width:16; opacity:.25; filter:blur(6px); animation:pulse 2.4s ease-in-out infinite; }
+.mapbox .st .core { stroke:var(--red); stroke-width:5; stroke-linecap:round; }
+.mapbox .st:hover .core, .mapbox .st.on .core { stroke:var(--ink); }
+.mapbox .st text { fill:var(--ink); font-family:var(--f-mono); font-size:17px; letter-spacing:.04em; }
+.mapbox .st.night .core { stroke-dasharray:2 10; }
+@keyframes pulse { 50% { opacity:.6; } }
+.mapbox .qz circle { fill:rgba(57,229,208,.12); stroke:var(--cy); stroke-width:2; stroke-dasharray:4 6; }
+.mapbox .qz text { fill:var(--cy); font-family:var(--f-mono); font-size:15px; }
+.mapbox .ring { fill:none; stroke:var(--line); stroke-width:2; stroke-dasharray:3 9; }
+.mapbox .river { fill:none; stroke:#2f6fd0; stroke-width:6; opacity:.7; }
+.mapbox .city { fill:rgba(241,239,233,.035); stroke:var(--line); stroke-width:1.5; }
+.mapbox .note { fill:var(--dim); font-family:var(--f-mono); font-size:15px; letter-spacing:.06em; }
+.stats { position:absolute; left:1270px; right:90px; top:150px; display:flex; flex-direction:column; gap:26px; }
+.stat { border-left:3px solid var(--red); padding-left:24px; animation:up .7s both; }
+.stat:nth-child(2) { animation-delay:.15s; } .stat:nth-child(3) { animation-delay:.3s; } .stat:nth-child(4) { animation-delay:.45s; }
+.stat b { display:block; font-family:var(--f-sig); font-weight:900; font-size:84px; line-height:1; letter-spacing:-.03em; }
+.stat p { margin:8px 0 0; font-size:21px; line-height:1.35; }
+.stat small { display:block; margin-top:6px; font-size:15px; color:var(--dim); letter-spacing:.04em; }
+.stat.hc { border-left-color:var(--amb); }
+.stat.hc b { font-size:54px; color:var(--amb); }
+/* bedroom window */
+.room { position:absolute; inset:0; z-index:30; background:#050608; animation:fade 1.2s both; overflow:hidden; }
+.room .win { position:absolute; left:380px; top:110px; width:960px; height:680px; border:26px solid #15171c; background:linear-gradient(#0b1020,#141a2c); overflow:hidden; box-shadow:0 0 0 2px #22252c, 0 40px 120px rgba(0,0,0,.8); }
+.room .win::before, .room .win::after { content:''; position:absolute; background:#15171c; z-index:3; }
+.room .win::before { left:50%; top:0; bottom:0; width:22px; margin-left:-11px; } .room .win::after { top:48%; left:0; right:0; height:22px; }
+.room .blinds { position:absolute; inset:0; z-index:2; background:repeating-linear-gradient(0deg, rgba(5,6,8,.9) 0 26px, transparent 26px 40px); }
+.room .beam { position:absolute; top:-20%; width:260px; height:140%; background:linear-gradient(90deg, transparent, rgba(255,220,160,.45), transparent); transform:skewX(-20deg); animation:beam var(--d,4s) linear infinite; animation-delay:var(--dl,0s); z-index:1; }
+.room .beam.r { background:linear-gradient(90deg, transparent, rgba(255,58,46,.4), transparent); }
+@keyframes beam { from { left:-40%; } to { left:120%; } }
+.room .ceil { position:absolute; left:0; right:0; top:0; height:120px; overflow:hidden; }
+.room .ceil i { position:absolute; top:0; height:100%; width:420px; background:linear-gradient(90deg, transparent, rgba(255,220,160,.12), transparent); animation:beam 5s linear infinite; }
+.room h2 { position:absolute; left:120px; right:120px; bottom:50px; margin:0; text-align:center; font-family:var(--f-voice); font-style:italic; font-weight:400; font-size:76px; line-height:1.05; z-index:5; text-shadow:0 4px 30px #000; }
+.room .scale { position:absolute; right:110px; top:150px; height:700px; width:330px; z-index:5; }
+.room .scale::before { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background:linear-gradient(to top, var(--cy), var(--amb) 55%, var(--red)); }
+.room .mk { position:absolute; left:0; width:100%; padding-left:26px; }
+.room .mk::before { content:''; position:absolute; left:-8px; top:12px; width:20px; height:4px; background:var(--ink); }
+.room .mk b { font-family:var(--f-sig); font-size:36px; display:block; }
+.room .mk span { font-size:16px; line-height:1.35; color:var(--dim); display:block; margin-top:4px; }
+.room .mk.red b { color:var(--red); }
+.room .tag { position:absolute; left:110px; top:150px; z-index:5; font-size:16px; letter-spacing:.18em; color:var(--dim); width:220px; line-height:1.5; }
+
+/* ===== 7 · GALAȚI ===== */
+.galati .lbl { position:absolute; left:120px; top:120px; }
+.galati .lbl b { color:var(--cy); }
+.galati .pre { position:absolute; left:120px; top:166px; font-family:var(--f-voice); font-style:italic; font-size:46px; color:var(--dim); }
+.galati .qh { position:absolute; left:120px; right:400px; top:236px; font-size:70px; }
+.galati .qh span { color:var(--cy); }
+.galati .cd { right:140px; top:200px; }
+.galati .cd .fg { stroke:var(--cy); }
+.galati .opts { position:absolute; left:120px; right:120px; top:520px; grid-template-columns:repeat(4,1fr); }
+.galati .opt { height:300px; flex-direction:column; align-items:flex-start; justify-content:space-between; background:rgba(11,22,32,.82); }
+.galati .opt em { color:var(--cy); }
+.galati .opt p { margin:0; font-size:18px; line-height:1.4; color:var(--dim); animation:up .5s .2s both; }
+.rv.galati .opt { opacity:1; transform:none; }
+.galati .stamp { position:absolute; right:16px; top:16px; font-size:14px; letter-spacing:.18em; color:var(--cy); border:2px solid var(--cy); padding:5px 10px; animation:up .5s both; }
+.galati .stamp.done { color:var(--ink); border-color:var(--ink); }
+.galati .all { position:absolute; left:120px; right:120px; top:236px; margin:0; font-family:var(--f-sig); font-weight:900; font-size:84px; line-height:1; letter-spacing:-.03em; animation:up .6s both; }
+.galati .all span { color:var(--cy); }
+.galati .honest { position:absolute; left:120px; right:120px; top:860px; display:flex; gap:40px; align-items:flex-start; animation:up .6s .5s both; }
+.galati .honest > div { flex:1; font-size:20px; line-height:1.45; }
+.galati .honest b { color:var(--cy); font-weight:600; letter-spacing:.14em; font-size:15px; display:block; margin-bottom:6px; }
+
+/* ===== 8 · END ===== */
+.end .big { position:absolute; left:0; right:0; top:330px; text-align:center; font-family:var(--f-sig); font-weight:900; font-size:170px; line-height:.95; letter-spacing:-.04em; }
+.end .lbl { position:absolute; left:0; right:0; top:240px; text-align:center; }
+.knob { position:absolute; left:50%; top:700px; width:900px; margin-left:-450px; }
+.knob .track { height:6px; background:var(--line); position:relative; }
+.knob .track i { position:absolute; left:0; top:0; bottom:0; width:var(--v,100%); background:currentColor; transition:width 9s cubic-bezier(.4,0,.2,1); }
+.knob .track b { position:absolute; top:50%; left:var(--v,100%); width:34px; height:34px; margin:-17px 0 0 -17px; border-radius:50%; background:currentColor; transition:left 9s cubic-bezier(.4,0,.2,1); }
+.knob .lab { display:flex; justify-content:space-between; margin-top:22px; font-size:18px; letter-spacing:.2em; color:var(--dim); }
+.end.down .knob .track i, .end.down .knob .track b { --v:0%; }
+.fin { position:absolute; left:0; right:0; top:0; bottom:0; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; }
+.fin h2 { margin:0; font-family:var(--f-sig); font-weight:700; font-size:92px; line-height:1.02; letter-spacing:-.03em; animation:fadeS 2s both; }
+.fin p { margin:28px 0 0; font-family:var(--f-voice); font-style:italic; font-size:84px; line-height:1.05; animation:fadeS 2.4s 1.6s both; }
+.fin .last { margin-top:120px; font-family:var(--f-mono); font-size:24px; letter-spacing:.3em; text-transform:uppercase; animation:fadeS 2s 3.6s both; }
+.fin .last b { font-weight:600; }
+@keyframes fadeS { from { opacity:0; filter:blur(10px); } }
+.fin .foot { position:absolute; left:0; right:0; bottom:46px; display:flex; justify-content:center; gap:12px; animation:fadeS 1s 5s both; }
+.calm .tool { color:#6d6b66; border-color:#cfccc3; } .calm .tool:hover { color:#111; border-color:#111; }
+
+/* sources overlay */
+#srcs { position:absolute; inset:0; z-index:80; background:#08080b; color:#f1efe9; display:none; padding:80px 120px; overflow:auto; }
+#srcs.on { display:block; animation:fade .2s; }
+#srcs h2 { margin:0 0 8px; font-family:var(--f-sig); font-weight:900; font-size:60px; }
+#srcs .why { font-size:18px; color:var(--dim); margin-bottom:28px; }
+#srcs ol { margin:0; padding-left:28px; columns:2; column-gap:60px; }
+#srcs li { font-size:17px; line-height:1.4; margin-bottom:14px; break-inside:avoid; color:#d8d5cc; }
+#srcs li b { color:#fff; font-weight:600; }
+#srcs li span { display:block; color:#8f8c85; font-size:14px; word-break:break-all; }
+#srcs .x { position:absolute; right:60px; top:50px; font-size:16px; letter-spacing:.2em; color:var(--dim); }
+
+/* presenter bar (real pixels, outside the stage) */
+#ctl { position:fixed; left:50%; bottom:10px; transform:translate(-50%, 140%); z-index:100; display:flex; align-items:center; gap:6px; padding:8px; background:#111114; border:1px solid #333; transition:transform .25s cubic-bezier(.2,.8,.2,1); font-size:13px; max-width:calc(100vw - 20px); flex-wrap:wrap; justify-content:center; font-family:var(--f-mono); }
+#ctl.show, #ctl.pin { transform:translate(-50%,0); }
+#ctl button { min-height:36px; padding:6px 10px; background:#1c1c21; color:#eee; border:1px solid #3a3a42; font-size:13px; cursor:pointer; }
+#ctl button:hover { background:#eee; color:#111; }
+#ctl button.y { background:var(--red); border-color:var(--red); color:#fff; }
+#ctl .sep { width:1px; height:28px; background:#3a3a42; margin:0 4px; }
+#toast { position:fixed; left:50%; top:16px; transform:translate(-50%,-80px); background:#f1efe9; color:#111; font-family:var(--f-mono); padding:10px 18px; z-index:120; transition:.25s; }
+#toast.show { transform:translate(-50%,0); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; } }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="viz" width="1920" height="1080"></canvas>
+  <div id="screen"></div>
+  <div id="hud" class="off"></div>
+  <div id="wipe"></div>
+  <div id="fxl"></div>
+  <div id="srcs"></div>
+</div>
+<div id="ctl">
+  <button data-c="back">◀ Back</button>
+  <button data-c="reveal" class="y">Reveal ⏎</button>
+  <button data-c="next">Next ␣</button>
+  <span class="sep"></span>
+  <button data-c="timer" id="c-timer">Timer (T)</button>
+  <button data-c="treset">↺ Timer (R)</button>
+  <span class="sep"></span>
+  <button data-c="mute" id="c-mute">Mute (M)</button>
+  <button data-c="sound" id="c-sound">Sound ❚❚ (P)</button>
+  <button data-c="src">Sources (S)</button>
+  <button data-c="fs">Fullscreen (F)</button>
+  <button data-c="pin" id="c-pin">Pin bar (C)</button>
+  <button data-c="reset" id="c-reset">Restart</button>
+</div>
+<div id="toast"></div>
+
+<script>
+{
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+const pad = (n) => String(n).padStart(2, '0');
+const gl = (t) => `<span class="gl" data-t="${esc(t)}">${esc(t)}</span>`;
+
+/* =========================================================================
+   SOUND ENGINE — everything synthesized live, so nothing has to download.
+   layers → scene gain (faded at the end) → analyser (drives visuals) → master (mute) → out
+   If audio fails, the whole presentation still runs; visuals fall back to simulated levels.
+   ========================================================================= */
+const A = { ctx: null, ok: false, paused: false };
+const L = {};
+function aInit() {
+  if (A.ctx) { if (A.ctx.state === 'suspended') A.ctx.resume(); return A.ok; }
+  try {
+    const C = window.AudioContext || window.webkitAudioContext; A.ctx = new C();
+    const c = A.ctx;
+    A.scene = c.createGain(); A.an = c.createAnalyser(); A.an.fftSize = 1024; A.an.smoothingTimeConstant = .75;
+    A.master = c.createGain(); A.master.gain.value = S.muted ? 0 : .85;
+    A.comp = c.createDynamicsCompressor(); A.comp.threshold.value = -16; A.comp.ratio.value = 4;
+    A.scene.connect(A.an); A.an.connect(A.master); A.master.connect(A.comp); A.comp.connect(c.destination);
+    const mk = (brown) => { const b = c.createBuffer(1, c.sampleRate * 6, c.sampleRate), d = b.getChannelData(0); let last = 0; for (let i = 0; i < d.length; i++) { const w = Math.random() * 2 - 1; if (brown) { last = (last + .02 * w) / 1.02; d[i] = last * 3.5; } else d[i] = w; } return b; };
+    A.white = mk(false); A.brown = mk(true); A.ok = true;
+  } catch (e) { A.ok = false; }
+  return A.ok;
+}
+const now = () => A.ctx.currentTime;
+function loopSrc(buf, off) { const s = A.ctx.createBufferSource(); s.buffer = buf; s.loop = true; s.start(now(), off == null ? Math.random() * 3 : off); return s; }
+function env(p, t, a, peak, hold, rel) { p.setValueAtTime(.0001, t); p.exponentialRampToValueAtTime(peak, t + a); p.setValueAtTime(peak, t + a + hold); p.exponentialRampToValueAtTime(.0001, t + a + hold + rel); }
+function pan(node, from, to, t, d) { if (!A.ctx.createStereoPanner) return node; const p = A.ctx.createStereoPanner(); p.pan.setValueAtTime(from, t); p.pan.linearRampToValueAtTime(to, t + d); node.connect(p); return p; }
+function loop(ly, fn, min, max) { const tick = () => { if (!ly.alive) return; try { fn(); } catch (e) {} ly.timers.push(setTimeout(tick, (min + Math.random() * (max - min)) * 1000)); }; ly.timers.push(setTimeout(tick, Math.random() * min * 600)); }
+
+function carPass(out, muffle) {
+  const c = A.ctx, t = now(), d = 2 + Math.random() * 2.5, s = c.createBufferSource(); s.buffer = A.white; s.loop = true;
+  const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = .7; const f0 = 220 + Math.random() * 260;
+  bp.frequency.setValueAtTime(f0, t); bp.frequency.linearRampToValueAtTime(f0 * 2.3, t + d * .5); bp.frequency.linearRampToValueAtTime(f0 * .8, t + d);
+  const g = c.createGain(); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.45 + Math.random() * .4, t + d * .5); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+  let n = s.connect(bp).connect(g); const dir = Math.random() < .5 ? -1 : 1; n = pan(n, -dir * .9, dir * .9, t, d);
+  if (muffle) { const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420; n.connect(lp); n = lp; }
+  n.connect(out); s.start(t, Math.random() * 2); s.stop(t + d + .1);
+}
+function honk(out, n) {
+  const c = A.ctx, base = [[392, 494], [415, 523], [349, 440], [466, 587]][Math.random() * 4 | 0], p = Math.random() * 1.6 - .8;
+  for (let k = 0; k < n; k++) {
+    const t = now() + k * .3, d = k === n - 1 ? .2 + Math.random() * .5 : .12;
+    const g = c.createGain(), lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2300; g.connect(lp);
+    let o2 = lp; if (c.createStereoPanner) { const pn = c.createStereoPanner(); pn.pan.value = p; lp.connect(pn); o2 = pn; } o2.connect(out);
+    env(g.gain, t, .012, .13, d, .05);
+    base.forEach((f) => { const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f * (1 + (Math.random() - .5) * .012); o.connect(g); o.start(t); o.stop(t + d + .1); });
+  }
+}
+function bell(out, t) { const c = A.ctx; [1, 2.76, 5.4, 8.93].forEach((m, i) => { const o = c.createOscillator(); o.frequency.value = 1420 * m; const g = c.createGain(); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.2 / (i + 1), t + .004); g.gain.exponentialRampToValueAtTime(.0001, t + 1.5 / (i * .7 + 1)); o.connect(g).connect(out); o.start(t); o.stop(t + 1.7); }); }
+function screech(out, t) { const c = A.ctx, s = c.createBufferSource(); s.buffer = A.white; s.loop = true; const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 28; bp.frequency.setValueAtTime(3000, t); bp.frequency.linearRampToValueAtTime(3600, t + 1.8); const g = c.createGain(); env(g.gain, t, .35, 1.2, .9, .7); s.connect(bp).connect(g).connect(out); s.start(t); s.stop(t + 2.2); }
+function rumble(out, t, d = 3.5, lvl = .7, f = 130) { const c = A.ctx, s = c.createBufferSource(); s.buffer = A.brown; s.loop = true; const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = f; const g = c.createGain(); env(g.gain, t, d * .4, lvl, d * .2, d * .4); s.connect(lp).connect(g).connect(out); s.start(t); s.stop(t + d + .1); }
+function jack(out) {
+  const c = A.ctx, t = now(), dur = 1.4 + Math.random() * 1.3, rate = 18 + Math.random() * 5, s = c.createBufferSource(); s.buffer = A.white; s.loop = true;
+  const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 900; bp.Q.value = .8; const g = c.createGain(); g.gain.setValueAtTime(.0001, t);
+  for (let k = 0; k < dur * rate; k++) { const tt = t + k / rate; g.gain.setValueAtTime(.5, tt); g.gain.exponentialRampToValueAtTime(.015, tt + .034); }
+  s.connect(bp).connect(g).connect(out); s.start(t); s.stop(t + dur + .05);
+  const o = c.createOscillator(); o.frequency.value = 62; const og = c.createGain(); og.gain.setValueAtTime(.0001, t); for (let k = 0; k < dur * rate; k++) { const tt = t + k / rate; og.gain.setValueAtTime(.35, tt); og.gain.exponentialRampToValueAtTime(.01, tt + .04); } o.connect(og).connect(out); o.start(t); o.stop(t + dur + .05);
+}
+function grind(out) { const c = A.ctx, t = now(), d = 1.6 + Math.random() * 1.5, s = c.createBufferSource(); s.buffer = A.white; s.loop = true; const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 4; bp.frequency.setValueAtTime(2600, t); bp.frequency.linearRampToValueAtTime(4200, t + d); const g = c.createGain(); env(g.gain, t, .2, .5, d - .4, .2); s.connect(bp).connect(g).connect(out); s.start(t); s.stop(t + d + .1); }
+function clank(out) { const c = A.ctx, t = now(), s = c.createBufferSource(); s.buffer = A.white; const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2500; bp.Q.value = 9; const g = c.createGain(); env(g.gain, t, .002, .9, .01, .3); s.connect(bp).connect(g).connect(out); s.start(t); s.stop(t + .5); const o = c.createOscillator(); o.frequency.value = 740 + Math.random() * 200; const og = c.createGain(); env(og.gain, t, .002, .12, .01, .6); o.connect(og).connect(out); o.start(t); o.stop(t + .7); }
+function plane(out) { const c = A.ctx, t = now(), d = 11, s = c.createBufferSource(); s.buffer = A.brown; s.loop = true; const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(150, t); lp.frequency.linearRampToValueAtTime(1300, t + d * .5); lp.frequency.linearRampToValueAtTime(180, t + d); const g = c.createGain(); env(g.gain, t, d * .45, 1.1, d * .1, d * .45); let n = s.connect(lp).connect(g); n = pan(n, -.6, .6, t, d); n.connect(out); s.start(t); s.stop(t + d + .1); }
+function moto(out) { const c = A.ctx, t = now(), d = 3.4, o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(70, t); o.frequency.linearRampToValueAtTime(150, t + d * .5); o.frequency.linearRampToValueAtTime(62, t + d); const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 700; const g = c.createGain(); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.32, t + d * .5); g.gain.exponentialRampToValueAtTime(.0001, t + d); let n = o.connect(lp).connect(g); n = pan(n, -1, 1, t, d); n.connect(out); o.start(t); o.stop(t + d + .1); }
+
+const BUILD = {
+  traffic(ly) { const c = A.ctx, s = loopSrc(A.brown), lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 380; const g = c.createGain(); g.gain.value = .5; s.connect(lp).connect(g).connect(ly.g); ly.nodes.push(s);
+    const lfo = c.createOscillator(); lfo.frequency.value = .07; const lg = c.createGain(); lg.gain.value = .16; lfo.connect(lg).connect(g.gain); lfo.start(); ly.nodes.push(lfo);
+    loop(ly, () => carPass(ly.g), .6, 2.2); },
+  horns(ly) { loop(ly, () => honk(ly.g, Math.random() < .35 ? 2 : 1), 1.3, 3.4); },
+  tram(ly) { loop(ly, () => { const t = now(); rumble(ly.g, t, 4, .8); bell(ly.g, t + .2); bell(ly.g, t + .52); screech(ly.g, t + 1.5); }, 4.5, 7.5); },
+  construction(ly) { loop(ly, () => jack(ly.g), 2.8, 4.4); loop(ly, () => grind(ly.g), 4.5, 8); },
+  aircraft(ly) { const t = now(); plane(ly.g); loop(ly, () => plane(ly.g), 9, 12); },
+  industry(ly) { const c = A.ctx, o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 100; const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 320; const g = c.createGain(); g.gain.value = .12; o.connect(lp).connect(g).connect(ly.g); o.start(); ly.nodes.push(o);
+    const o2 = c.createOscillator(); o2.frequency.value = 50; const g2 = c.createGain(); g2.gain.value = .2; o2.connect(g2).connect(ly.g); o2.start(); ly.nodes.push(o2);
+    loop(ly, () => clank(ly.g), 1.1, 2.6); },
+  night(ly) { const c = A.ctx, s = loopSrc(A.brown), lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 220; const g = c.createGain(); g.gain.value = .45; s.connect(lp).connect(g).connect(ly.g); ly.nodes.push(s);
+    loop(ly, () => carPass(ly.g, true), 2.5, 6); loop(ly, () => moto(ly.g), 7, 12); }
+};
+function startLayer(n) { if (L[n]) return L[n]; const g = A.ctx.createGain(); g.gain.value = .0001; g.connect(A.scene); const ly = { g, alive: true, timers: [], nodes: [] }; L[n] = ly; try { BUILD[n](ly); } catch (e) {} return ly; }
+function stopLayer(n) { const ly = L[n]; if (!ly) return; delete L[n]; ly.alive = false; ly.timers.forEach(clearTimeout); const t = now(); ly.g.gain.cancelScheduledValues(t); ly.g.gain.setTargetAtTime(.0001, t, .25); setTimeout(() => { ly.nodes.forEach((x) => { try { x.stop && x.stop(); } catch (e) {} try { x.disconnect(); } catch (e) {} }); try { ly.g.disconnect(); } catch (e) {} }, 1600); }
+let curMix = {};
+function scape(mix, keepScene) {
+  curMix = mix || {};
+  if (!A.ok || !A.ctx || A.paused) return;
+  const t = now();
+  if (!keepScene) { A.scene.gain.cancelScheduledValues(t); A.scene.gain.setTargetAtTime(1, t, .15); }
+  Object.keys(L).forEach((n) => { if (!curMix[n]) stopLayer(n); });
+  Object.keys(curMix).forEach((n) => { const ly = startLayer(n); ly.g.gain.cancelScheduledValues(t); ly.g.gain.setTargetAtTime(Math.max(.0001, curMix[n]), t, .4); });
+}
+function fadeScene(to, sec) { if (!A.ok || !A.ctx) return; const t = now(); A.scene.gain.cancelScheduledValues(t); A.scene.gain.setValueAtTime(A.scene.gain.value, t); A.scene.gain.linearRampToValueAtTime(Math.max(.0001, to), t + sec); }
+function setMute(m) { S.muted = m; save(); if (A.ctx) { const t = now(); A.master.gain.cancelScheduledValues(t); A.master.gain.setTargetAtTime(m ? 0 : .85, t, .01); } $('#c-mute').textContent = m ? 'Unmute (M)' : 'Mute (M)'; hud(); }
+let soloT = 0;
+function solo(n) { if (!aInit()) return toast('Audio not available — the visuals still work'); const back = { ...curMix }; scape({ [n]: 1 }); clearTimeout(soloT); soloT = setTimeout(() => { $$('.ch.on').forEach((x) => x.classList.remove('on')); scape(back); }, 5200); }
+
+/* =========================================================================
+   CONTENT — every number below is tied to a source in the overlay (S)
+   ========================================================================= */
+const SECTIONS = [
+  { id: 'open', name: 'HEAR IT', est: '0:35' }, { id: 'src', name: 'SOURCES', est: '0:50' }, { id: 'ppl', name: 'PEOPLE', est: '0:55' },
+  { id: 'map', name: 'BUCHAREST', est: '1:00' }, { id: 'gal', name: 'GALAȚI', est: '1:05' }, { id: 'end', name: 'SILENCE', est: '0:35' }
+];
+const STEPS = [
+  { sec: 'open', k: 'intro', mood: .35, mix: {} },
+  { sec: 'open', k: 'listen', phases: 2, timer: 10, mood: 1, mix: { traffic: 1, horns: .9, tram: 1, construction: .9 } },
+  { sec: 'src', k: 'game', phases: 2, timer: 10, mood: .75, mix: { traffic: .55, horns: .35 } },
+  { sec: 'src', k: 'mixer', mood: .7, mix: { traffic: .22 } },
+  { sec: 'ppl', k: 'people', phases: 2, timer: 10, mood: .55, mix: { traffic: .35, horns: .22 } },
+  { sec: 'ppl', k: 'crowd', phases: 2, mood: .45, mix: { traffic: .25 } },
+  { sec: 'map', k: 'map', phases: 2, mood: .7, mix: { traffic: .45, tram: .45, horns: .2 }, mix1: { night: 1 } },
+  { sec: 'gal', k: 'galati', phases: 2, timer: 10, mood: .28, mix: { traffic: .1 } },
+  { sec: 'end', k: 'end', phases: 3, mood: 1, mix: { traffic: 1, horns: 1, tram: 1, construction: 1 } }
+];
+const SOURCES = [
+  ['Radio Romania International — “Noise pollution in Romania” (26 Apr 2024)', 'Figures attributed to Alex Luchiian, pulse.eco: almost 4 million people exposed to high road-traffic noise by day, almost 3 million at night. The article does not state which year the data cover.', 'https://www.rri.ro/en/features-and-reports/green-planet/noise-pollution-in-romania-id752884.html'],
+  ['European Commission, Green City Accord — Galați: Action Plan for Managing Environmental Noise', 'Timeline 2020–2025, status ongoing. Mapping of Str. Traian, Bd. George Coșbuc, Drumul de Centură, tram lines and industrial sites; barriers, green spaces and traffic management described as measures the plan “will implement”.', 'https://environment.ec.europa.eu/topics/urban-environment/green-city-accord/green-city-accord-good-practices/galati-action-plan-managing-environmental-noise_en'],
+  ['World Bank (Dec 2019) — Bucharest Urban Development Program (P169577), Component 1, Output 2, §5.4 “Action plan for noise reduction in Bucharest City”', '228 extremely noisy areas over the legal limits of 70 dB (day) and 60 dB (night), per the strategic noise maps; maps cover car, train and tram traffic and industrial noise.', 'https://documents1.worldbank.org/curated/en/099811106272236674/pdf/P16957700d453c06f093ba0ebd88a695e08.pdf'],
+  ['Bucharest City Hall draft decision on traffic noise, reported by Adevărul (22 Sep 2022) and Newsweek România (21 Sep 2022)', 'Night limit exceeded on 59 streets; night-time road noise reaches 702,500 people above 50 dB, 25,900 above 60 dB; listed effects: discomfort, disturbed sleep, mental health, work productivity.', 'https://adevarul.ro/stiri-locale/bucuresti/masinile-si-motocicletele-zgomotoase-interzise-2206985.html'],
+  ['Romania Insider (Sep 2022) — draft regulation on loud vehicles', 'Bucharest City Hall’s Environment Directorate: road traffic is the most important source of noise pollution in the city.', 'https://www.romania-insider.com/draft-regulation-ban-loud-cars-bucharest-nighttime'],
+  ['Romania Insider (2017) — “Bucharest has over 200 extremely noisy areas”', 'Boulevards above 70 dB by day incl. Unirii, Tineretului, Națiunile Unite, C. Brâncoveanu, Aviatorilor; night limit also exceeded on 1 Decembrie, 1 Mai, Ferdinand.', 'https://www.romania-insider.com/bucharest-noise-areas'],
+  ['G4Media / EVZ (2025) — updated Bucharest noise action plan (INCERTRANS)', 'Main noise sources: road traffic, trams, industrial activity; noisiest zone: Băneasa – Șos. București–Ploiești.', 'https://www.g4media.ro/top-10-cele-mai-zgomotoase-zone-din-bucuresti-ce-masuri-pot-scadea-nivelul-poluarii-fonice.html'],
+  ['Europa Liberă România — “Poluarea care nu se vede, dar se aude”', 'Noise-mapping engineer B. Lazarovici names Bd. Iuliu Maniu and Bd. Nicolae Grigorescu as boulevards with frequent exceedances.', 'https://romania.europalibera.org/a/32120072.html'],
+  ['Bucharest noise map by address (summary of the city’s 2023 strategic noise map and action plan)', 'Action-plan thresholds for large streets: 70 dB (24 h) and 60 dB (night). Quiet zones: Văcărești Natural Park, Carol I Park, Tineretului Park.', 'https://mariuscomper.uk/harta-zgomotului-bucuresti/en/'],
+  ['European Environment Agency — exposure of Europe’s population to noise; WHO guideline values', 'Road traffic is the primary source of noise across Europe. WHO recommends road traffic below 53 dB Lden and 45 dB at night.', 'https://www.eea.europa.eu/ims/exposure-of-europe-population-to-noise'],
+  ['European Environment Agency — Romania noise fact sheet 2022', 'Official Romanian data reported under the Environmental Noise Directive (rounds 2012, 2017, 2022).', 'https://www.eea.europa.eu/en/analysis/maps-and-charts/romania-noise-fact-sheet-2022'],
+  ['Euronews România (2025) — Bucharest noise monitoring', 'Bucharest City Hall announced noise monitoring through 30 measuring stations as part of its new noise plan.', 'https://www.euronews.ro/articole/nivelul-de-zgomot-din-bucuresti-monitorizat-prin-30-de-statii-de-masurare-anuntul'],
+  ['Romania Insider / Spotmedia (June 2026) — Happy City Index 2026', 'Bucharest placed 247th of 251 cities. A quality-of-life index (governance, economy, environment, mobility, health, satisfaction) — not a noise ranking.', 'https://www.romania-insider.com/bucharest-unhappy-cities-world-study-june-2026']
+];
+
+/* ---------- state ---------- */
+const KEY = 'noise-pres-v1';
+const fresh = () => ({ step: 0, phase: 0, muted: false, t0: 0, picks: {} });
+let S; try { S = Object.assign(fresh(), JSON.parse(localStorage.getItem(KEY)) || {}); } catch (e) { S = fresh(); }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+const step = () => STEPS[S.step];
+
+/* ---------- countdown (presenter-controlled) ---------- */
+const T = { total: 0, left: 0, run: false, last: 0, sec: -1 };
+function tSet(n) { T.total = n || 0; T.left = T.total; T.run = false; tDraw(); }
+function tToggle() { if (!T.total) return toast('No countdown on this screen'); if (T.run) T.run = false; else { if (T.left <= 0) T.left = T.total; T.run = true; T.last = performance.now(); } tDraw(); }
+function tReset() { T.left = T.total; T.run = false; tDraw(); }
+function beep(f, d) { if (!A.ok || S.muted) return; const c = A.ctx, o = c.createOscillator(), g = c.createGain(); o.frequency.value = f; env(g.gain, now(), .005, .12, d, .05); o.connect(g); g.connect(A.master); o.start(); o.stop(now() + d + .1); }
+setInterval(() => {
+  if (T.run) {
+    const n = performance.now(); T.left -= (n - T.last) / 1000; T.last = n;
+    const s = Math.ceil(T.left); if (s !== T.sec) { T.sec = s; if (s > 0 && s <= 3) beep(1400, .05); }
+    if (T.left <= 0) { T.left = 0; T.run = false; beep(220, .5); flash('TIME'); }
+    tDraw();
+  }
+  clock();
+}, 100);
+function tDraw() {
+  $$('.cd').forEach((el) => { el.style.setProperty('--f', T.total ? T.left / T.total : 0); el.classList.toggle('run', T.run); el.classList.toggle('low', T.run && T.left <= 3); el.classList.toggle('end', !T.run && T.left <= 0 && T.total > 0); $('b', el).textContent = Math.ceil(T.left); });
+  $('#c-timer').textContent = T.total ? (T.run ? 'Timer ❚❚ (T)' : 'Timer ▶ (T)') : 'No timer';
+}
+const cdHTML = () => `<div class="cd" data-cd><svg viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="45"/><circle class="fg" cx="50" cy="50" r="45" pathLength="100"/></svg><b></b><small>T / CLICK = START</small></div>`;
+
+/* ---------- navigation ---------- */
+let first = true;
+function go(i, phase = 0) {
+  const prev = step() && step().sec;
+  S.step = Math.max(0, Math.min(STEPS.length - 1, i)); S.phase = phase;
+  if (S.step > 0 && !S.t0) S.t0 = Date.now();
+  save(); tSet(step().timer || 0); first = true; render(); soundNow();
+  if (step().sec !== prev) wipe();
+}
+function advance() {
+  const st = step();
+  if (st.k === 'intro') { aInit(); return go(1); }
+  if (st.phases && S.phase < st.phases - 1) return reveal();
+  if (S.step < STEPS.length - 1) go(S.step + 1);
+}
+function back() { if (S.phase > 0) { S.phase--; save(); first = false; render(); soundNow(); return; } if (S.step > 0) go(S.step - 1, (STEPS[S.step - 1].phases || 1) - 1); }
+function reveal() {
+  const st = step(); if (!st.phases || S.phase >= st.phases - 1) return;
+  S.phase++; save(); T.run = false; tDraw(); first = false; render(); soundNow(); if (st.k !== 'end') hitFx();
+}
+function soundNow() {
+  const st = step();
+  if (st.k === 'end') {
+    if (S.phase === 0) scape(st.mix);
+    else if (S.phase === 1) { scape(st.mix, true); fadeScene(0, 9); setTimeout(() => { if (step().k === 'end' && S.phase >= 1) scape({}, true); }, 9500); }
+    else { scape({}, true); }
+    return;
+  }
+  scape(S.phase > 0 && st.mix1 ? st.mix1 : st.mix);
+}
+function hitFx() { if (!A.ok || S.muted) return; const c = A.ctx, t = now(); rumble(A.master, t, .6, .5, 90); }
+
+/* ---------- visuals: ridge-line signal field (reacts to the real audio when it plays) ---------- */
+const VZ = { lv: .3, tgt: .3, calm: 0, calmT: 0, dim: 1, dimT: 1, cy: 540, cyT: 540, data: new Uint8Array(512), t: 0, ink: [241, 239, 233] };
+const cv = $('#viz'), cx = cv.getContext('2d');
+function vizFrame() {
+  requestAnimationFrame(vizFrame);
+  VZ.t += 1 / 60; VZ.lv += (VZ.tgt - VZ.lv) * .03; VZ.calm += (VZ.calmT - VZ.calm) * .012; VZ.dim += (VZ.dimT - VZ.dim) * .05; VZ.cy += (VZ.cyT - VZ.cy) * .02;
+  let have = false, energy = 0;
+  if (A.ok && A.an && !A.paused) { A.an.getByteFrequencyData(VZ.data); let s = 0; for (let i = 0; i < 160; i++) s += VZ.data[i]; energy = s / (160 * 255); have = energy > .02; }
+  const W = 1920, H = 1080, N = 30, k = VZ.lv * (1 - VZ.calm), ink = VZ.ink;
+  cx.clearRect(0, 0, W, H);
+  for (let i = 0; i < N; i++) {
+    const base = 150 + i * (H - 280) / (N - 1), y0 = base + (VZ.cy - base) * VZ.calm;
+    const hot = i % 6 === 2;
+    cx.beginPath();
+    for (let x = 0; x <= W; x += 14) {
+      const nx = x / W, bell = Math.exp(-Math.pow((nx - .5) / .24, 2));
+      let v;
+      if (have) { const b = (Math.floor(nx * 70) + i * 3) % 200; v = VZ.data[b] / 255; }
+      else v = (Math.sin(nx * 34 + VZ.t * (2 + i * .1) + i) * .5 + .5) * (.35 + .65 * Math.abs(Math.sin(nx * 9 - VZ.t * 1.3 + i * .7))) * .8;
+      const amp = 12 + 190 * k;
+      const jit = k > .6 ? (Math.random() - .5) * 10 * (k - .6) : 0;
+      const y = y0 - bell * v * amp + jit + Math.sin(nx * 6 + VZ.t * .6 + i) * 3 * (1 - VZ.calm);
+      x === 0 ? cx.moveTo(x, y) : cx.lineTo(x, y);
+    }
+    const a = (hot ? .55 : .16 + .1 * k) * VZ.dim * (VZ.calm > .5 ? (i === 14 ? 1.8 : (1 - VZ.calm) * 2) : 1);
+    cx.strokeStyle = hot && VZ.calm < .5 ? `rgba(255,58,46,${a})` : `rgba(${ink[0]},${ink[1]},${ink[2]},${Math.min(1, a)})`;
+    cx.lineWidth = hot ? 2 : 1.2; cx.stroke();
+  }
+  if (k > .72 && Math.random() < .07) { const y = Math.random() * H, h = 10 + Math.random() * 60; try { cx.drawImage(cv, 0, y, W, h, (Math.random() - .5) * 80, y, W, h); } catch (e) {} }
+}
+requestAnimationFrame(vizFrame);
+function setMood() {
+  const st = step(); let m = st.mood, calm = 0, dim = 1;
+  if (['people', 'crowd', 'galati', 'mixer'].includes(st.k)) dim = .55;
+  if (st.k === 'map') dim = .35;
+  if (st.k === 'galati') calm = .25;
+  if (st.k === 'end' && S.phase >= 1) { m = .02; calm = 1; }
+  VZ.tgt = m; VZ.calmT = calm; VZ.dimT = dim; VZ.cyT = st.k === 'end' && S.phase === 2 ? 850 : 540;
+  const light = st.k === 'end' && S.phase >= 1;
+  const stg = $('#stage'); stg.classList.toggle('calm', light || st.k === 'galati');
+  stg.style.setProperty('--bg', light ? '#ecebe4' : st.k === 'galati' ? '#0a141d' : '#08080b');
+  stg.style.setProperty('--ink', light ? '#141416' : '#f1efe9');
+  stg.style.setProperty('--dim', light ? 'rgba(20,20,22,.55)' : 'rgba(241,239,233,.55)');
+  stg.style.setProperty('--line', light ? 'rgba(20,20,22,.16)' : 'rgba(241,239,233,.16)');
+  VZ.ink = light ? [20, 20, 22] : [241, 239, 233];
+}
+
+/* ---------- render ---------- */
+function render() {
+  const st = step(), A2 = first ? 'in' : '', rv = st.phases && S.phase > 0;
+  const H = { intro: introHTML, listen: listenHTML, game: gameHTML, mixer: mixerHTML, people: peopleHTML, crowd: crowdHTML, map: mapHTML, galati: galatiHTML, end: endHTML }[st.k];
+  $('#screen').innerHTML = H(rv, A2, S.phase);
+  bind(); tDraw(); hud(); setMood(); first = false;
+  if (st.k === 'crowd') crowdFX(rv);
+  if (st.k === 'end' && S.phase === 1) requestAnimationFrame(() => requestAnimationFrame(() => { const e = $('.end'); if (e) e.classList.add('down'); }));
+}
+function bind() {
+  $$('[data-cd]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); tToggle(); });
+  $$('[data-act]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); act(b.dataset.act); });
+  $$('[data-opt]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); pick(+b.dataset.opt); });
+  $$('[data-ch]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); $$('.ch.on').forEach((x) => x.classList.remove('on')); b.classList.add('on'); solo(b.dataset.ch); });
+  $$('[data-st]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); b.classList.add('on'); setTimeout(() => b.classList.remove('on'), 1500); if (aInit()) { carPass(A.scene); if (Math.random() < .5) honk(A.scene, 1); } });
+}
+function pick(i) {
+  const k = S.step; if (!step().phases) return;
+  S.picks[k] = S.picks[k] === i ? -1 : i; save();
+  $$('[data-opt]').forEach((b) => b.classList.toggle('picked', +b.dataset.opt === S.picks[k]));
+  if (S.picks[k] >= 0) beep(880, .06);
+}
+const picked = (i) => (S.picks[S.step] === i ? 'picked' : '');
+const pickTag = '<span class="pick">ROOM’S PICK</span>';
+
+/* ---- 0 · INTRO ---- */
+function introHTML() {
+  return `<div class="pg intro">
+    <div class="lbl in">Country reality · <b>noise pollution</b> · Romania</div>
+    <h1 class="t-big in d1">${gl('SOUND ON')}</h1>
+    <span class="t-out in d2">/ ROMANIA <b>OFF?</b></span>
+    <p class="voice in d3">You can turn down your headphones.<br>Can you turn down an entire city?</p>
+    <button class="go in d4" data-act="start"><i></i>PRESS SPACE — TURN THE SOUND ON</button>
+    <div class="tools"><button class="tool" data-act="mute">${S.muted ? 'SOUND: OFF' : 'SOUND: ON'}</button><button class="tool" data-act="fs">FULLSCREEN</button><button class="tool" data-act="src">SOURCES (S)</button><button class="tool" data-act="help">CONTROLS · MOUSE TO BOTTOM · C = PIN</button></div>
+  </div>`;
+}
+
+/* ---- 1 · LISTEN ---- */
+const LAYERS = [['01', 'TRAFFIC'], ['02', 'HORNS'], ['03', 'TRAMS'], ['04', 'CONSTRUCTION']];
+const meter = () => `<div class="meter">${Array.from({ length: 14 }, () => `<i style="--sp:${(.18 + Math.random() * .4).toFixed(2)}s"></i>`).join('')}</div>`;
+function listenHTML(rv, A2) {
+  return `<div class="pg listen ${rv ? 'rv' : ''}">
+    <div class="lbl" style="position:absolute;left:120px;top:120px">01 · <b>Hear it</b></div>
+    <h2 class="${A2}">${rv ? `${gl('WELCOME TO')}<br>${gl('ROMANIA’S URBAN')}<br>${gl('SOUNDTRACK.')}` : `${gl('GUESS WHAT')}<br>${gl('YOU’RE HEARING.')}`}</h2>
+    ${rv ? '' : cdHTML()}
+    <div class="slots">${LAYERS.map((l, i) => `<div class="slot">${rv ? `<div class="a" style="--dl:${i * .18}s"><small>LAYER ${l[0]}</small><b>${l[1]}</b></div>` : `<div class="q">?</div>${meter()}`}</div>`).join('')}</div>
+    ${rv ? `<div class="sub voice"><b>4 LAYERS. 1 CITY. EVERY DAY.</b>You can turn down your headphones. Can you turn down an entire city?</div>` : '<div class="hint">SHOUT IT OUT ↑</div>'}
+  </div>`;
+}
+
+/* ---- 2 · SOURCE GAME ---- */
+const GAME = ['Road traffic', 'Birds', 'Wind', 'Cafés'];
+function citySVG() {
+  const blocks = [[0, 120, 140], [150, 60, 110], [270, 150, 170], [430, 90, 120], [560, 30, 150], [720, 110, 130], [860, 70, 180], [1050, 140, 120], [1180, 40, 160], [1350, 100, 140], [1500, 60, 120], [1630, 130, 160], [1800, 80, 140]];
+  let s = `<svg viewBox="0 0 1920 330" preserveAspectRatio="none">`;
+  blocks.forEach(([x, y, w]) => { s += `<rect x="${x}" y="${y}" width="${w}" height="${260 - y}" fill="rgba(241,239,233,.05)" stroke="rgba(241,239,233,.18)"/>`; for (let wy = y + 18; wy < 240; wy += 28) for (let wx = x + 14; wx < x + w - 14; wx += 26) if (Math.random() < .5) s += `<rect x="${wx}" y="${wy}" width="10" height="12" fill="rgba(255,176,0,${(.15 + Math.random() * .4).toFixed(2)})"/>`; });
+  s += `<g class="el x"><line x1="1360" y1="100" x2="1360" y2="10" stroke="var(--amb)" stroke-width="5"/><line x1="1280" y1="14" x2="1520" y2="14" stroke="var(--amb)" stroke-width="5"/><line x1="1500" y1="14" x2="1500" y2="70" stroke="var(--amb)" stroke-width="2"/></g>`;
+  s += `<g class="el x">${[[300, 40], [340, 26], [380, 48], [980, 30], [1020, 18]].map(([x, y]) => `<path class="bird" d="M${x} ${y} q 10 -10 20 0 q 10 -10 20 0" fill="none" stroke="var(--ink)" stroke-width="3"/>`).join('')}</g>`;
+  s += `<g class="el x">${[60, 110, 160].map((y, i) => `<path class="wind" d="M${600 + i * 40} ${y} C ${800} ${y - 30}, ${900} ${y + 30}, ${1100} ${y}" fill="none" stroke="var(--cy)" stroke-width="3" style="animation-delay:${i * .6}s"/>`).join('')}</g>`;
+  s += `<g class="el x" transform="translate(1660 200)"><path d="M0 30 L60 0 L120 30 Z" fill="var(--red)" opacity=".7"/><line x1="60" y1="30" x2="60" y2="60" stroke="var(--ink)" stroke-width="3"/><rect x="30" y="52" width="60" height="6" fill="var(--ink)"/></g>`;
+  s += `<rect x="0" y="260" width="1920" height="70" fill="rgba(241,239,233,.06)"/><line x1="0" y1="295" x2="1920" y2="295" stroke="rgba(241,239,233,.35)" stroke-dasharray="30 26" stroke-width="3"/>`;
+  s += `<g class="el x" transform="translate(180 222)"><rect width="320" height="40" fill="rgba(57,229,208,.15)" stroke="var(--cy)"/><line x1="160" y1="0" x2="190" y2="-24" stroke="var(--cy)" stroke-width="2"/><text x="14" y="27" fill="var(--cy)" font-family="IBM Plex Mono" font-size="16">TRAM</text></g>`;
+  for (let i = 0; i < 7; i++) { const r = i % 2, y = r ? 300 : 268, d = (2.6 + Math.random() * 2.2).toFixed(2), dl = (-Math.random() * 5).toFixed(2); s += `<g class="car ${r ? 'r' : ''}" style="--d:${d}s;--dl:${dl}s"><rect x="0" y="${y}" width="80" height="22" rx="6" fill="var(--ink)" opacity=".85"/><rect x="${r ? -160 : 80}" y="${y + 8}" width="160" height="6" fill="url(#trail${r})"/></g>`; }
+  s += `<defs><linearGradient id="trail0"><stop offset="0" stop-color="#ffb000" stop-opacity=".7"/><stop offset="1" stop-color="#ffb000" stop-opacity="0"/></linearGradient><linearGradient id="trail1"><stop offset="0" stop-color="#ff3a2e" stop-opacity="0"/><stop offset="1" stop-color="#ff3a2e" stop-opacity=".7"/></linearGradient></defs></svg>`;
+  return s;
+}
+let CITY = '';
+function gameHTML(rv, A2) {
+  CITY = CITY || citySVG();
+  return `<div class="pg game ${rv ? 'rv' : ''}">
+    <div class="lbl">02 · <b>The sound source game</b></div>
+    <h2 class="qh ${A2}">Which one makes the most noise in a city like Bucharest?</h2>
+    ${rv ? '' : cdHTML()}
+    <div class="scene">${CITY}</div>
+    <div class="opts">${GAME.map((o, i) => `<div class="opt ${rv ? (i === 0 ? 'ok' : 'no') : ''} ${picked(i)} ${A2} d${i + 1}" data-opt="${i}">${pickTag}<em>${'ABCD'[i]}</em><span>${esc(o)}</span></div>`).join('')}</div>
+    ${rv ? `<div class="verdict src"><b>Road traffic.</b> Bucharest City Hall’s Environment Directorate calls it the most important source of noise pollution in the city — and the European Environment Agency says the same for Europe as a whole.</div>` : ''}
+  </div>`;
+}
+
+/* ---- 3 · MIXER ---- */
+const CH = [['traffic', 'Road traffic', 'MAIN SOURCE'], ['tram', 'Trams & rail'], ['aircraft', 'Aircraft'], ['construction', 'Construction'], ['industry', 'Industry']];
+function mixerHTML() {
+  return `<div class="pg mixer">
+    <div class="lbl">02 · <b>The full band</b></div>
+    <h2 class="qh in">IT’S NOT A SOLO.<small>Tap a channel to hear it alone.</small></h2>
+    <div class="desk">${CH.map((c, i) => `<div class="ch ${i === 0 ? 'main' : ''}" data-ch="${c[0]}">${c[2] ? `<span class="tag">${c[2]}</span>` : ''}<span class="no">CH ${pad(i + 1)}</span><div class="bars">${Array.from({ length: 8 }, () => `<i style="--sp:${(.2 + Math.random() * .5).toFixed(2)}s"></i>`).join('')}</div><b>${esc(c[1])}</b><span class="pl">▶ SOLO</span></div>`).join('')}</div>
+    <div class="src">Sources named in Bucharest’s noise maps and plans: <i>road traffic, trams, rail, industry</i>; Radio Romania International adds <i>aircraft</i> (mostly take-off and landing) and <i>construction</i>. Sounds are synthesized for this presentation.</div>
+  </div>`;
+}
+
+/* ---- 4 · PEOPLE ---- */
+const ART = {
+  student: `<svg viewBox="0 0 300 220" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"><line x1="20" y1="170" x2="280" y2="170"/><line x1="60" y1="170" x2="60" y2="215"/><line x1="240" y1="170" x2="240" y2="215"/><path d="M90 168 l40 -14 l40 14"/><path d="M130 154 v14"/><circle cx="150" cy="80" r="24"/><path d="M110 150 q40 -50 80 0"/><path d="M230 170 v-80 l-30 -20"/><path d="M185 60 l30 10 l-12 20 z" fill="rgba(255,176,0,.5)"/><path d="M196 90 l-30 60" stroke="var(--amb)" stroke-dasharray="4 8" opacity=".7"/><text x="10" y="40" font-family="Unbounded" font-size="26" fill="var(--red)" stroke="none">BEEP</text></svg>`,
+  night: `<svg viewBox="0 0 300 220" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"><rect x="20" y="140" width="260" height="40"/><line x1="20" y1="180" x2="20" y2="210"/><line x1="280" y1="180" x2="280" y2="210"/><rect x="34" y="118" width="70" height="22" rx="10"/><circle cx="70" cy="104" r="20"/><path d="M90 122 h160"/><rect x="190" y="14" width="90" height="80"/><circle cx="235" cy="54" r="16" fill="rgba(255,176,0,.6)" stroke="var(--amb)"/><path d="M235 26 v-6 M235 88 v-6 M207 54 h-6 M269 54 h-6" stroke="var(--amb)"/><text class="zz" x="110" y="80" font-family="Unbounded" font-size="30" fill="var(--dim)" stroke="none">z z</text><path d="M110 92 l40 -30" stroke="var(--red)"/></svg>`,
+  family: `<svg viewBox="0 0 300 220" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"><rect x="16" y="20" width="130" height="110"/><line x1="81" y1="20" x2="81" y2="130"/><line x1="16" y1="75" x2="146" y2="75"/><path d="M16 50 L146 40" stroke="var(--amb)" stroke-width="10" opacity=".45"/><path d="M16 100 L146 92" stroke="var(--red)" stroke-width="10" opacity=".45"/><rect x="150" y="150" width="140" height="34"/><circle cx="178" cy="136" r="16"/><circle cx="222" cy="140" r="11"/><path d="M196 150 h80"/><line x1="150" y1="184" x2="150" y2="210"/><line x1="290" y1="184" x2="290" y2="210"/><text x="170" y="60" font-family="Unbounded" font-size="22" fill="var(--red)" stroke="none">VROOM</text></svg>`
+};
+const PPL = [
+  { k: 'student', t: '21:40', who: 'The student', th: 'Exam at nine. Third horn this minute.', hit: 'CONCENTRATION' },
+  { k: 'night', t: '11:15', who: 'The night-shift worker', th: 'Home at seven. The street just woke up.', hit: 'SLEEP — IN DAYLIGHT' },
+  { k: 'family', t: '02:30', who: 'The family by the boulevard', th: 'Every car is a little earthquake.', hit: 'NIGHT SLEEP · STRESS' }
+];
+function peopleHTML(rv, A2) {
+  return `<div class="pg people ${rv ? 'rv' : ''}">
+    <div class="lbl">03 · <b>Choose your nightmare</b></div>
+    ${rv ? `<h2 class="all">MOST AFFECTED?<br><span>ALL THREE — DIFFERENTLY.</span></h2>` : `<h2 class="qh ${A2}">Who do you think is most affected?</h2>${cdHTML()}`}
+    <div class="ppl">${PPL.map((p, i) => `<div class="opt ${picked(i)} ${A2} d${i + 1}" data-opt="${i}">${pickTag}<div class="top"><em>${'ABC'[i]}</em><span class="tm">${p.t}</span></div><div class="art">${ART[p.k]}</div><div class="who">${esc(p.who)}</div><div class="thought">“${esc(p.th)}”</div>${rv ? `<div class="hit">↯ ${p.hit}</div>` : ''}</div>`).join('')}</div>
+    ${rv ? `<div class="src">Bucharest City Hall (2022): noise above the limit <span class="voice">causes discomfort, disturbs sleep, affects mental health and the ability to work.</span></div>` : ''}
+  </div>`;
+}
+
+/* ---- 5 · CROWD ---- */
+function crowdHTML(rv, A2) {
+  return `<div class="pg crowd ${rv ? 'rv' : ''}">
+    <div class="lbl">03 · <b>The scale</b></div>
+    ${rv ? `<div class="big-n"><span id="cn">0</span><small>BY DAY</small></div><div class="night-n" id="nn">≈ 3,000,000<small>AT NIGHT</small></div>`
+      : `<h2 class="qh ${A2}">How many people in Romania live with high road-traffic noise?</h2><div class="ask">Shout a number.</div>`}
+    <canvas id="dots" width="1600" height="650"></canvas>
+    ${rv ? `<div class="key"><i></i>1 DOT = 1,000 PEOPLE</div><div class="src">Figures as reported by <i>Radio Romania International</i> (April 2024), citing material by the noise-monitoring platform pulse.eco: almost 4 million by day, almost 3 million at night. The article does not state which year the data cover.</div>` : ''}
+  </div>`;
+}
+let crowdRAF = 0;
+function crowdFX(rv) {
+  cancelAnimationFrame(crowdRAF);
+  const c = $('#dots'); if (!c) return; const g = c.getContext('2d'), cols = 100, rows = 40, n = cols * rows, sp = 16;
+  const order = Array.from({ length: n }, (_, i) => i).sort(() => Math.random() - .5);
+  const nightOff = new Set(order.slice(0, 1000));
+  const t0 = performance.now();
+  const draw = (tt) => {
+    const e = (tt - t0) / 1000; g.clearRect(0, 0, 1600, 650);
+    const lit = rv ? Math.min(n, Math.floor(n * Math.min(1, e / 2.6) ** 1.6)) : 0, night = rv && e > 3.8;
+    const litSet = new Set(order.slice(0, lit));
+    for (let i = 0; i < n; i++) {
+      const x = (i % cols) * sp + 8, y = Math.floor(i / cols) * sp + 8 + 6;
+      let col = 'rgba(241,239,233,.07)';
+      if (litSet.has(i)) col = night && nightOff.has(i) ? 'rgba(241,239,233,.16)' : (night ? 'rgba(255,58,46,.95)' : 'rgba(241,239,233,.9)');
+      g.fillStyle = col; g.beginPath(); g.arc(x, y, 4.2, 0, 6.283); g.fill();
+    }
+    if (rv) { const cn = $('#cn'); if (cn) cn.textContent = '≈ ' + Math.round(lit * 1000).toLocaleString('en-US'); const nn = $('#nn'); if (nn) nn.classList.toggle('on', night); }
+    if (rv && e < 4.6) crowdRAF = requestAnimationFrame(draw);
+  };
+  crowdRAF = requestAnimationFrame(draw);
+}
+
+/* ---- 6 · BUCHAREST MAP (schematic, not to scale) ---- */
+const STREETS = [
+  { n: 'Bd. Iuliu Maniu', d: 'M420 360 L230 330 L70 318', lx: 80, ly: 300 },
+  { n: 'Bd. Nicolae Grigorescu', d: 'M640 400 L780 392 L930 400', lx: 740, ly: 380 },
+  { n: 'Șos. București–Ploiești (Băneasa)', d: 'M470 250 L440 140 L410 40', lx: 430, ly: 36 },
+  { n: 'Bd. Aviatorilor', d: 'M505 300 L520 220 L540 150', lx: 552, ly: 200 },
+  { n: 'Bd. Unirii', d: 'M470 418 L560 414 L640 412', lx: 560, ly: 444 },
+  { n: 'Bd. Națiunile Unite', d: 'M470 418 L430 450', lx: 240, ly: 452 },
+  { n: 'Bd. Tineretului', d: 'M505 420 L512 520', lx: 300, ly: 540 },
+  { n: 'Bd. C. Brâncoveanu', d: 'M520 590 L532 700', lx: 330, ly: 680 },
+  { n: 'Bd. 1 Decembrie 1918', d: 'M700 360 L740 450 L770 540', lx: 790, ly: 520, night: true },
+  { n: 'Bd. Ferdinand', d: 'M560 360 L650 330', lx: 600, ly: 310, night: true }
+];
+const QZ = [['Tineretului Park', 545, 520, 40, 590, 545], ['Carol I Park', 470, 480, 22, 270, 494], ['Văcărești Natural Park', 640, 540, 50, 560, 612]];
+function mapSVG() {
+  return `<svg viewBox="0 0 1000 760">
+    <path class="city" d="M110 250 C 160 130, 330 60, 500 70 C 680 70, 860 160, 920 300 C 970 430, 900 600, 760 670 C 610 740, 380 735, 240 650 C 110 570, 60 380, 110 250 Z"/>
+    <ellipse class="ring" cx="500" cy="400" rx="460" ry="350"/>
+    <path class="river" d="M40 300 C 200 330, 330 390, 470 425 C 600 455, 760 500, 960 560"/>
+    <text class="note" x="250" y="392" style="fill:#5b8fe0">DÂMBOVIȚA</text>
+    ${QZ.map(([n, x, y, r, lx, ly]) => `<g class="qz"><circle cx="${x}" cy="${y}" r="${r}"/><text x="${lx}" y="${ly}">${n} · quiet zone</text></g>`).join('')}
+    ${STREETS.map((s, i) => `<g class="st ${s.night ? 'night' : ''}" data-st="${i}"><path class="glow" d="${s.d}" fill="none"/><path class="core" d="${s.d}" fill="none"/><path d="${s.d}" fill="none" stroke="transparent" stroke-width="30"/><text x="${s.lx}" y="${s.ly}">${s.n}</text></g>`).join('')}
+    <text class="note" x="20" y="755">SCHEMATIC, NOT TO SCALE · STREETS AND QUIET ZONES NAMED IN BUCHAREST’S NOISE PLANS · DOTTED = NIGHT LIMIT · CLICK A STREET</text>
+  </svg>`;
+}
+function mapHTML(rv, A2) {
+  return `<div class="pg map ${rv ? 'rv' : ''}">
+    <div class="lbl">04 · <b>Bucharest: the noise map</b></div>
+    <div class="mapbox ${A2}">${mapSVG()}</div>
+    <div class="stats">
+      <div class="stat"><b>228</b><p>zones over the legal limits — 70 dB by day, 60 dB at night</p><small>Bucharest noise action plan (2017), as summarised by the World Bank, 2019</small></div>
+      <div class="stat"><b>59</b><p>streets over the night-time limit</p><small>Bucharest City Hall, 2022</small></div>
+      <div class="stat"><b>702,500</b><p>people reached by night-time road noise above 50 dB</p><small>Bucharest City Hall, 2022</small></div>
+      <div class="stat hc"><b>247 / 251</b><p>Bucharest in the Happy City Index 2026</p><small>Quality-of-life ranking — not a noise ranking</small></div>
+    </div>
+    ${rv ? `<div class="room">
+      <div class="ceil"><i></i></div>
+      <div class="win"><div class="blinds"></div>${[[3.2, 0], [4.6, -1.8], [2.6, -3.1], [5.4, -.7]].map(([d, dl], i) => `<span class="beam ${i === 2 ? 'r' : ''}" style="--d:${d}s;--dl:${dl}s"></span>`).join('')}</div>
+      <div class="tag">02:30<br>BEDROOM<br>WINDOW CLOSED</div>
+      <div class="scale">
+        <div class="mk red" style="top:120px"><b>60 dB</b><span>Bucharest’s night limit for big streets.<br>59 streets go past it.</span></div>
+        <div class="mk" style="top:440px"><b>45 dB</b><span>WHO guideline for road traffic at night</span></div>
+      </div>
+      <h2>What if this was the sound<br>outside your bedroom window?</h2>
+    </div>` : ''}
+  </div>`;
+}
+
+/* ---- 7 · GALAȚI ---- */
+const GAL = [
+  ['Sound barriers', 'Soundproof barriers — in the plan.'],
+  ['More green spaces', 'Green spaces — in the plan.'],
+  ['Better traffic management', 'Improved traffic management and traffic control — in the plan.'],
+  ['Noise mapping & monitoring', 'Mapped first: Strada Traian, Bd. George Coșbuc, Drumul de Centură, areas by the tram lines and industrial sites.']
+];
+function galatiHTML(rv, A2) {
+  return `<div class="pg galati ${rv ? 'rv' : ''}">
+    <div class="lbl">05 · <b>Can we turn the volume down?</b></div>
+    ${rv ? `<h2 class="all">GALAȚI’S PLAN INCLUDES <span>ALL FOUR.</span></h2>`
+      : `<div class="pre ${A2}">Galați · Action Plan for Managing Environmental Noise, 2020–2025</div><h2 class="qh ${A2}">You’re the mayor. <span>One</span> solution. What do you choose?</h2>${cdHTML()}`}
+    <div class="opts">${GAL.map((o, i) => `<div class="opt ${picked(i)} ${A2} d${i + 1}" data-opt="${i}">${pickTag}${rv ? `<span class="stamp ${i === 3 ? 'done' : ''}">${i === 3 ? 'MAPPING' : 'PLANNED'}</span>` : ''}<em>${'ABCD'[i]}</em><span>${esc(o[0])}</span>${rv ? `<p>${esc(o[1])}</p>` : ''}</div>`).join('')}</div>
+    ${rv ? `<div class="honest">
+      <div><b>BE HONEST ABOUT IT</b>Status: ongoing. The EU’s Green City Accord page lists barriers, green spaces and traffic management as measures the plan <i>will</i> implement — it doesn’t report them as finished.</div>
+      <div><b>WHY IT STILL MATTERS</b>A city that maps its noise can see where it hurts. The plan names road traffic and industry as Galați’s main sources.</div>
+      <div><b>AND BUCHAREST?</b>In 2025 Bucharest approved a new noise action plan and announced 30 noise-monitoring stations.</div>
+    </div>` : ''}
+  </div>`;
+}
+
+/* ---- 8 · END ---- */
+function endHTML(rv, A2, ph) {
+  if (ph === 2) return `<div class="pg end calmed"><div class="fin">
+      <h2>Noise pollution is invisible.</h2>
+      <p>But you don’t need to see it to feel it.</p>
+      <div class="last">Silence shouldn’t be a <b>luxury.</b></div>
+      <div class="foot"><button class="tool" data-act="src">SOURCES</button><button class="tool" data-act="replay">↺ REPLAY</button></div>
+    </div></div>`;
+  return `<div class="pg end ${ph === 1 ? '' : ''}">
+    <div class="lbl">06 · <b>${ph === 1 ? 'Turn the city down' : 'One more time'}</b></div>
+    <div class="big ${A2}">${ph === 1 ? 'TURN THE<br>CITY DOWN.' : `${gl('ONE MORE')}<br>${gl('TIME.')}`}</div>
+    <div class="knob"><div class="track"><i></i><b></b></div><div class="lab"><span>SILENCE</span><span>${ph === 1 ? 'TURNING DOWN…' : 'CITY VOLUME: 100%'}</span></div></div>
+  </div>`;
+}
+
+/* ---------- HUD ---------- */
+function hud() {
+  const st = step(), h = $('#hud');
+  h.classList.toggle('off', st.k === 'intro' || (st.k === 'end' && S.phase === 2));
+  const ci = SECTIONS.findIndex((s) => s.id === st.sec), inSec = STEPS.filter((x) => x.sec === st.sec), pos = inSec.indexOf(st);
+  h.innerHTML = `<div class="h-t">SOUND ON / <b>ROMANIA OFF?</b></div>
+    <div class="prog">${SECTIONS.map((s, k) => { const p = k < ci ? 100 : k === ci ? Math.round(((pos + (st.phases ? (S.phase + 1) / st.phases : 1)) / inSec.length) * 100) : 0;
+      return `<div class="seg ${k < ci ? 'done' : k === ci ? 'cur' : ''}" style="--p:${p}%"><i></i><span>${s.name}<small>~${s.est}</small></span></div>`; }).join('')}</div>
+    <div class="h-snd ${S.muted || !A.ok ? 'off' : ''}">${!A.ctx ? 'TAP FOR SOUND' : !A.ok ? 'NO AUDIO' : S.muted ? 'MUTED' : A.paused ? 'PAUSED' : '♪ LIVE'}</div>
+    <div class="clock" id="clock"></div>`;
+  clock();
+}
+function clock() {
+  const c = $('#clock'); if (!c) return;
+  if (!S.t0) { c.textContent = '0:00'; return; }
+  const s = Math.floor((Date.now() - S.t0) / 1000), txt = Math.floor(s / 60) + ':' + pad(s % 60);
+  if (c.textContent !== txt) c.textContent = txt; c.classList.toggle('late', s > 300);
+}
+
+/* ---------- overlays ---------- */
+let srcOn = false;
+function sources(force) {
+  const o = $('#srcs'); srcOn = force == null ? !srcOn : force; o.classList.toggle('on', srcOn);
+  if (srcOn) o.innerHTML = `<span class="x">S / ESC TO CLOSE</span><h2>SOURCES</h2><div class="why">Every number on screen comes from these. Where a source doesn’t give a data year, the slide says so. The sounds are synthesized; the map is a schematic.</div><ol>${SOURCES.map((s) => `<li><b>${esc(s[0])}</b> — ${esc(s[1])}<span>${esc(s[2])}</span></li>`).join('')}</ol>`;
+}
+function wipe() { const w = $('#wipe'); w.classList.remove('on'); void w.offsetWidth; w.classList.add('on'); }
+function flash(t) { const el = document.createElement('div'); el.className = 'flash'; el.innerHTML = `<span>${esc(t)}</span>`; $('#fxl').appendChild(el); setTimeout(() => el.remove(), 1200); }
+function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 1800); }
+
+/* ---------- actions ---------- */
+let resetArm = 0;
+function act(a) {
+  if (a === 'start') { aInit(); return go(1); }
+  if (a === 'mute') { aInit(); setMute(!S.muted); toast(S.muted ? 'Muted' : 'Sound on'); const t = $('[data-act="mute"]'); if (t) t.textContent = S.muted ? 'SOUND: OFF' : 'SOUND: ON'; return; }
+  if (a === 'fs') { try { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); } catch (e) {} return; }
+  if (a === 'help') return pinBar(true);
+  if (a === 'src') return sources();
+  if (a === 'replay') { S.t0 = 0; S.picks = {}; save(); return go(0); }
+}
+function togglePause() {
+  if (!aInit()) return toast('Audio not available');
+  A.paused = !A.paused;
+  if (A.paused) { Object.keys(L).forEach(stopLayer); toast('Sound paused (P)'); } else { toast('Sound back on'); soundNow(); }
+  $('#c-sound').textContent = A.paused ? 'Sound ▶ (P)' : 'Sound ❚❚ (P)'; hud();
+}
+function pinBar(v) { const c = $('#ctl'); const on = v == null ? !c.classList.contains('pin') : v; c.classList.toggle('pin', on); $('#c-pin').textContent = on ? 'Unpin bar (C)' : 'Pin bar (C)'; }
+$('#ctl').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-c]'); if (!b) return; aInit();
+  ({ back, reveal, next: advance, timer: tToggle, treset: tReset, mute: () => act('mute'), sound: togglePause, src: () => sources(), fs: () => act('fs'), pin: () => pinBar(),
+    reset: () => { if (Date.now() - resetArm > 3000) { resetArm = Date.now(); b.textContent = 'Click again: restart'; setTimeout(() => (b.textContent = 'Restart'), 3000); return; } b.textContent = 'Restart'; act('replay'); }
+  }[b.dataset.c] || (() => {}))();
+});
+document.addEventListener('click', (e) => { if (e.target.closest && e.target.closest('button')) setTimeout(() => { const a = document.activeElement; if (a && a.tagName === 'BUTTON') a.blur(); }, 0); });
+$('#srcs').addEventListener('click', () => sources(false));
+let hideT = 0;
+document.addEventListener('mousemove', (e) => { const c = $('#ctl'); if (e.clientY > window.innerHeight - 160) { c.classList.add('show'); clearTimeout(hideT); hideT = setTimeout(() => c.classList.remove('show'), 2500); } });
+// the first click/key anywhere unlocks audio (browsers require a gesture) and starts this screen's sound
+let unlocked = false;
+const unlock = () => { if (unlocked) return; unlocked = true; if (aInit()) { setMute(S.muted); soundNow(); } hud(); };
+document.addEventListener('pointerdown', unlock);
+document.addEventListener('keydown', (e) => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const k = e.key; unlock();
+  if (srcOn && (k === 'Escape' || k === 's' || k === 'S')) { e.preventDefault(); return sources(false); }
+  if (k === ' ' || k === 'PageDown' || k === 'ArrowRight') { e.preventDefault(); advance(); }
+  else if (k === 'ArrowLeft' || k === 'PageUp') { e.preventDefault(); back(); }
+  else if (k === 'Enter') { e.preventDefault(); reveal(); }
+  else if (k === 'f' || k === 'F') act('fs');
+  else if (k === 'm' || k === 'M') act('mute');
+  else if (k === 'p' || k === 'P') togglePause();
+  else if (k === 't' || k === 'T') tToggle();
+  else if (k === 'r' || k === 'R') tReset();
+  else if (k === 's' || k === 'S') sources();
+  else if (k === 'c' || k === 'C') pinBar();
+  else if (k === 'Home') go(0);
+  else if (/^[1-4]$/.test(k)) pick(+k - 1);
+});
+
+/* ---------- scale stage to the screen ---------- */
+function fit() { const s = Math.min(innerWidth / 1920, innerHeight / 1080); $('#stage').style.transform = `translate(-50%,-50%) scale(${s})`; }
+addEventListener('resize', fit); fit();
+$('#c-mute').textContent = S.muted ? 'Unmute (M)' : 'Mute (M)';
+tSet(step().timer || 0); render();
+window.__N = { S: () => S, go, advance, reveal, back, steps: STEPS.length };
+}
+</script>
+</body>
+</html>
