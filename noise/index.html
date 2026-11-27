@@ -12,7 +12,7 @@
    VOICE  a signal that starts as interference and ends as silence
    LOOK   black broadcast space, signal-red + white ridge-line waveforms, glitch; resolves into calm cyan, then paper-white silence
    TYPE   Unbounded (signal / shouting) · IBM Plex Mono (data, labels) · Instrument Serif italic (the human voice)
-   SOUND  synthesized live with WebAudio (no files): traffic, horns, trains, construction, aircraft, dogs, a neighbour's drill */
+   SOUND  real recordings from Wikimedia Commons (credited in Sources), with a synthesized fallback for each layer */
 :root { --bg:#08080b; --ink:#f1efe9; --dim:rgba(241,239,233,.55); --red:#ff3a2e; --amb:#ffb000; --cy:#39e5d0; --line:rgba(241,239,233,.16);
   --f-sig:'Unbounded','Arial Black',sans-serif; --f-mono:'IBM Plex Mono',ui-monospace,monospace; --f-voice:'Instrument Serif',Georgia,serif; }
 * { box-sizing:border-box; min-width:0; }
@@ -300,6 +300,11 @@ button { font-family:inherit; }
 #srcs li { font-size:17px; line-height:1.4; margin-bottom:14px; break-inside:avoid; color:#d8d5cc; }
 #srcs li b { color:#fff; font-weight:600; }
 #srcs li span { display:block; color:#8f8c85; font-size:14px; word-break:break-all; }
+#srcs .rc-h { margin:26px 0 12px; font-family:var(--f-sig); font-size:24px; }
+#srcs ul.rc { margin:0; padding-left:20px; columns:2; column-gap:60px; }
+#srcs ul.rc li { font-size:15px; margin-bottom:8px; }
+.sp-src { font-size:12px; letter-spacing:.12em; color:#39e5d0; margin-left:6px; }
+.sp-src.syn { color:#8f8c85; }
 #srcs .x { position:absolute; right:60px; top:50px; font-size:16px; letter-spacing:.2em; color:var(--dim); }
 
 
@@ -390,6 +395,7 @@ function aInit() {
     A.scene.connect(A.an); A.an.connect(A.master); A.master.connect(A.comp); A.comp.connect(c.destination);
     const mk = (brown) => { const b = c.createBuffer(1, c.sampleRate * 6, c.sampleRate), d = b.getChannelData(0); let last = 0; for (let i = 0; i < d.length; i++) { const w = Math.random() * 2 - 1; if (brown) { last = (last + .02 * w) / 1.02; d[i] = last * 3.5; } else d[i] = w; } return b; };
     A.white = mk(false); A.brown = mk(true); A.ok = true;
+    setTimeout(() => { Object.keys(RAW).forEach(decodeOne); recStatus(); }, 0);
   } catch (e) { A.ok = false; }
   return A.ok;
 }
@@ -480,7 +486,69 @@ const BUILD = {
   night(ly) { const c = A.ctx, s = loopSrc(A.brown), lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 220; const g = c.createGain(); g.gain.value = .45; s.connect(lp).connect(g).connect(ly.g); ly.nodes.push(s);
     loop(ly, () => carPass(ly.g, true), 2.5, 6); loop(ly, () => moto(ly.g), 7, 12); }
 };
-function startLayer(n) { if (L[n]) return L[n]; const g = A.ctx.createGain(); g.gain.value = .0001; g.connect(A.scene); const ly = { g, alive: true, timers: [], nodes: [] }; L[n] = ly; try { BUILD[n](ly); } catch (e) {} return ly; }
+
+/* ---------- REAL RECORDINGS (Wikimedia Commons, free licences — credited in Sources) ----------
+   Fetched once, kept in the browser cache so the show also works offline afterwards.
+   Any layer whose recording can't load falls back to the synthesized version above. */
+const REC = {
+  street: ['6/6a/Ambient_sound_street_traffic_Berlin_2026-05-17.oga', 'Ambient sound street traffic, Berlin', 'SchlurcherBot', 'CC BY-SA 4.0'],
+  city: ['1/19/Ambient_sound_city_street_Berlin_2026-05-17.oga', 'Ambient sound city street, Berlin', 'SchlurcherBot', 'CC BY-SA 4.0'],
+  horn: ['9/90/Speeding-car-horn_doppler_effect_sample.ogg', 'Speeding car horn', 'Magickallwiz', 'CC BY-SA 3.0'],
+  train: ['0/08/Trains_through_a_railwa.ogg', 'Trains through a railway station', 'ezwa', 'Public domain'],
+  trainhorn: ['8/89/AirChime_K5LA.ogg', 'AirChime K5LA locomotive horn', 'HarveyHenkelmann', 'CC0'],
+  site: ['2/2f/Tamrock_Tiger_drilling_machine_drilling.opus', 'Drilling machine at a construction site, Helsinki', 'Antti Leppänen', 'CC BY 4.0'],
+  drill: ['0/0c/Drilling_next_door_1.ogg', 'Drilling next door', 'ezwa', 'Public domain'],
+  dog: ['b/be/Dog_barking.webm', 'Dog barking', 'Dr. Nono YesMaybe', 'CC BY-SA 4.0'],
+  plane: ['9/9b/2011-06-05_19-32_Berlin_TXL_Airplane_Flyover_plus_Wingtip_Vortex.ogg', 'Airplane flyover, Berlin Tegel', 'Fritz Schlüter', 'CC BY-SA 3.0'],
+  highway: ['5/5c/Highway_from_bridge_center.ogg', 'Highway at night, from a bridge', 'stephan', 'Public domain']
+};
+const NEED = { traffic: ['street', 'city'], horns: ['horn'], train: ['train'], construction: ['site'], drill: ['drill'], dogs: ['dog'], aircraft: ['plane'], night: ['highway'] };
+const RAW = {}, BUF = {};
+const recURL = (k) => 'https://upload.wikimedia.org/wikipedia/commons/' + REC[k][0];
+const recReady = (n) => (NEED[n] || []).every((k) => BUF[k]);
+const recCount = () => Object.keys(REC).filter((k) => BUF[k] || RAW[k]).length;
+async function preload() {
+  let cache = null; try { cache = await caches.open('noise-recordings-v1'); } catch (e) {}
+  await Promise.all(Object.keys(REC).map(async (k) => {
+    try {
+      const url = recURL(k); let res = cache ? await cache.match(url) : null;
+      if (!res) { res = await fetch(url, { mode: 'cors' }); if (!res.ok) throw new Error(res.status); if (cache) { try { await cache.put(url, res.clone()); } catch (e) {} } }
+      RAW[k] = await res.arrayBuffer(); if (A.ok) decodeOne(k);
+    } catch (e) { BUF[k] = false; }
+    recStatus();
+  }));
+}
+function decodeOne(k) {
+  if (BUF[k] || !RAW[k] || !A.ctx) return; const raw = RAW[k];
+  A.ctx.decodeAudioData(raw.slice(0)).then((b) => { BUF[k] = b; RAW[k] = null; recStatus(); refreshRec(); }).catch(() => { BUF[k] = false; RAW[k] = null; recStatus(); });
+}
+let refT = 0;
+function refreshRec() { clearTimeout(refT); refT = setTimeout(() => { if (!A.ok || A.paused) return; let ch = false; Object.keys(L).forEach((n) => { if (!L[n].rec && recReady(n)) { stopLayer(n); ch = true; } }); if (ch) scape(curMix, true); }, 300); }
+function recStatus() { const n = Object.keys(REC).filter((k) => BUF[k]).length, got = recCount(), tot = Object.keys(REC).length; $$('.rec-st').forEach((e) => (e.textContent = A.ctx ? `REAL SOUNDS ${n}/${tot}` : `REAL SOUNDS ${got}/${tot} DOWNLOADED`)); $$('[data-src-of]').forEach((e) => { const ok = recReady(e.dataset.srcOf); e.textContent = ok ? 'REC' : 'SYNTH'; e.classList.toggle('syn', !ok); }); }
+function loopRec(ly, k, gain, o = {}) {
+  const c = A.ctx, s = c.createBufferSource(); s.buffer = BUF[k]; s.loop = true; let n = s;
+  if (o.lp) { const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = o.lp; n.connect(f); n = f; }
+  if (o.pan != null && c.createStereoPanner) { const p = c.createStereoPanner(); p.pan.value = o.pan; n.connect(p); n = p; }
+  const g = c.createGain(); g.gain.value = gain; n.connect(g).connect(ly.g); s.start(now(), Math.random() * BUF[k].duration * .85); ly.nodes.push(s);
+}
+function shotRec(out, k, gain, o = {}) {
+  const c = A.ctx, t = now(), b = BUF[k]; if (!b) return; const s = c.createBufferSource(); s.buffer = b; s.playbackRate.value = o.rate || 1;
+  const d = Math.min(o.dur || b.duration, b.duration - (o.off || 0)), g = c.createGain();
+  g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + .03); g.gain.setValueAtTime(gain, t + Math.max(.05, d - .25)); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+  let n = s; if (o.pan != null && c.createStereoPanner) { const p = c.createStereoPanner(); p.pan.value = o.pan; n.connect(p); n = p; }
+  n.connect(g).connect(out); s.start(t, o.off || 0, d + .05);
+}
+const RECB = {
+  traffic(ly) { loopRec(ly, 'street', .9, { pan: -.35 }); loopRec(ly, 'city', .8, { pan: .35 }); },
+  horns(ly) { loop(ly, () => shotRec(ly.g, 'horn', .75, { rate: .85 + Math.random() * .3, pan: Math.random() * 1.6 - .8 }), 2.2, 5.5); },
+  train(ly) { loopRec(ly, 'train', 1.4); if (BUF.trainhorn) loop(ly, () => shotRec(ly.g, 'trainhorn', .3, { off: Math.random() * 16, dur: 2.6 }), 12, 22); },
+  construction(ly) { loopRec(ly, 'site', .9, { pan: .2 }); },
+  drill(ly) { loopRec(ly, 'drill', 1.1, { pan: -.25 }); },
+  dogs(ly) { loopRec(ly, 'dog', .75, { lp: 5000, pan: .45 }); },
+  aircraft(ly) { loopRec(ly, 'plane', 1); },
+  night(ly) { loopRec(ly, 'highway', 1.5, { lp: 650 }); }
+};
+function startLayer(n) { if (L[n]) return L[n]; const g = A.ctx.createGain(); g.gain.value = .0001; g.connect(A.scene); const ly = { g, alive: true, timers: [], nodes: [], rec: false }; L[n] = ly; try { if (recReady(n) && RECB[n]) { RECB[n](ly); ly.rec = true; } else BUILD[n](ly); } catch (e) { try { BUILD[n](ly); } catch (e2) {} } return ly; }
 function stopLayer(n) { const ly = L[n]; if (!ly) return; delete L[n]; ly.alive = false; ly.timers.forEach(clearTimeout); const t = now(); ly.g.gain.cancelScheduledValues(t); ly.g.gain.setTargetAtTime(.0001, t, .25); setTimeout(() => { ly.nodes.forEach((x) => { try { x.stop && x.stop(); } catch (e) {} try { x.disconnect(); } catch (e) {} }); try { ly.g.disconnect(); } catch (e) {} }, 1600); }
 let curMix = {};
 function scape(mix, keepScene) {
@@ -645,7 +713,7 @@ function render() {
   const st = step(), A2 = first ? 'in' : '', rv = st.phases && S.phase > 0;
   const H = { intro: introHTML, listen: listenHTML, game: gameHTML, mixer: mixerHTML, people: peopleHTML, crowd: crowdHTML, map: mapHTML, galati: galatiHTML, end: endHTML }[st.k];
   $('#screen').innerHTML = H(rv, A2, S.phase);
-  bind(); tDraw(); hud(); setMood(); first = false;
+  bind(); tDraw(); hud(); setMood(); first = false; recStatus();
   if (st.k === 'crowd') crowdFX(rv);
   if (st.k === 'end' && S.phase === 1) requestAnimationFrame(() => requestAnimationFrame(() => { const e = $('.end'); if (e) e.classList.add('down'); }));
 }
@@ -673,7 +741,7 @@ function introHTML() {
     <span class="t-out in d2">/ ROMANIA <b>OFF?</b></span>
     <p class="voice in d3">You can turn down your headphones.<br>Can you turn down an entire city?</p>
     <button class="go in d4" data-act="start"><i></i>PRESS SPACE — TURN THE SOUND ON</button>
-    <div class="tools"><button class="tool" data-act="mute">${S.muted ? 'SOUND: OFF' : 'SOUND: ON'}</button><button class="tool" data-act="fs">FULLSCREEN</button><button class="tool" data-act="snds">SOUNDS (N)</button><button class="tool" data-act="src">SOURCES (S)</button><button class="tool" data-act="help">CONTROLS · MOUSE TO BOTTOM · C = PIN</button></div>
+    <div class="tools"><button class="tool" data-act="mute">${S.muted ? 'SOUND: OFF' : 'SOUND: ON'}</button><button class="tool" data-act="fs">FULLSCREEN</button><button class="tool" data-act="snds">SOUNDS (N)</button><button class="tool" data-act="src">SOURCES (S)</button><span class="tool rec-st" style="cursor:default">REAL SOUNDS …</span><button class="tool" data-act="help">CONTROLS · MOUSE TO BOTTOM · C = PIN</button></div>
   </div>`;
 }
 
@@ -726,7 +794,7 @@ function mixerHTML() {
     <div class="lbl">02 · <b>The full band</b></div>
     <h2 class="qh in">IT’S NOT A SOLO.<small>Tap a channel to hear it alone.</small></h2>
     <div class="desk">${CH.map((c, i) => `<div class="ch ${i === 0 ? 'main' : ''}" data-ch="${c[0]}">${c[2] ? `<span class="tag">${c[2]}</span>` : ''}<span class="no">CH ${pad(i + 1)}</span><div class="bars">${Array.from({ length: 8 }, () => `<i style="--sp:${(.2 + Math.random() * .5).toFixed(2)}s"></i>`).join('')}</div><b>${esc(c[1])}</b><span class="pl">▶ SOLO</span></div>`).join('')}</div>
-    <div class="src">Road traffic is the main source in Bucharest. <i>Rail, aircraft and construction</i> are also named by Radio Romania International. <i>Barking dogs and a neighbour’s drill</i> are everyday sounds added for the experience — they’re not part of the official noise maps. All sounds are synthesized live.</div>
+    <div class="src">Road traffic is the main source in Bucharest. <i>Rail, aircraft and construction</i> are also named by Radio Romania International. <i>Barking dogs and a neighbour’s drill</i> are everyday sounds added for the experience — they’re not part of the official noise maps. Sounds are real recordings from Wikimedia Commons — credits in Sources (S).</div>
   </div>`;
 }
 
@@ -890,7 +958,7 @@ function clock() {
 let srcOn = false;
 function sources(force) {
   const o = $('#srcs'); srcOn = force == null ? !srcOn : force; o.classList.toggle('on', srcOn);
-  if (srcOn) o.innerHTML = `<span class="x">S / ESC TO CLOSE</span><h2>SOURCES</h2><div class="why">Every number on screen comes from these. Where a source doesn’t give a data year, the slide says so. The sounds are synthesized; the map is a schematic.</div><ol>${SOURCES.map((s) => `<li><b>${esc(s[0])}</b> — ${esc(s[1])}<span>${esc(s[2])}</span></li>`).join('')}</ol>`;
+  if (srcOn) o.innerHTML = `<span class="x">S / ESC TO CLOSE</span><h2>SOURCES</h2><div class="why">Every number on screen comes from these. Where a source doesn’t give a data year, the slide says so. The sounds are synthesized; the map is a schematic.</div><ol>${SOURCES.map((s) => `<li><b>${esc(s[0])}</b> — ${esc(s[1])}<span>${esc(s[2])}</span></li>`).join('')}</ol><h3 class="rc-h">SOUND RECORDINGS · Wikimedia Commons</h3><ul class="rc">${Object.keys(REC).map((k) => `<li><b>${esc(REC[k][1])}</b> — ${esc(REC[k][2])}, ${esc(REC[k][3])}<span>${esc(recURL(k))}</span></li>`).join('')}</ul>`;
 }
 function wipe() { const w = $('#wipe'); w.classList.remove('on'); void w.offsetWidth; w.classList.add('on'); }
 function flash(t) { const el = document.createElement('div'); el.className = 'flash'; el.innerHTML = `<span>${esc(t)}</span>`; $('#fxl').appendChild(el); setTimeout(() => el.remove(), 1200); }
@@ -903,11 +971,12 @@ function sndPanel(force) {
   const o = $('#sndp'); sndOn = force == null ? !sndOn : force; o.classList.toggle('on', sndOn);
   if (!sndOn) return;
   aInit();
-  o.innerHTML = `<div class="sp-h"><b>SOUNDS</b><span>Applies to every screen · saved on this device</span><button class="sp-x" data-sp="close">✕</button></div>
+  o.innerHTML = `<div class="sp-h"><b>SOUNDS</b><span>Applies to every screen · saved on this device · <i class="rec-st" style="font-style:normal"></i></span><button class="sp-x" data-sp="close">✕</button></div>
     <div class="sp-row sp-master"><span class="sp-n">Master volume</span><input type="range" min="0" max="100" value="${Math.round(S.vol * 100)}" data-vol><b class="sp-v">${Math.round(S.vol * 100)}%</b></div>
-    ${SND_KEYS.map(([k, n]) => `<div class="sp-row ${S.snd[k] > 0 ? '' : 'off'}" data-row="${k}"><button class="sp-t" data-tg="${k}">${S.snd[k] > 0 ? 'ON' : 'OFF'}</button><span class="sp-n">${n}</span><input type="range" min="0" max="100" value="${Math.round(S.snd[k] * 100)}" data-lv="${k}"><button class="sp-p" data-test="${k}">▶</button></div>`).join('')}
+    ${SND_KEYS.map(([k, n]) => `<div class="sp-row ${S.snd[k] > 0 ? '' : 'off'}" data-row="${k}"><button class="sp-t" data-tg="${k}">${S.snd[k] > 0 ? 'ON' : 'OFF'}</button><span class="sp-n">${n} <small class="sp-src" data-src-of="${k}"></small></span><input type="range" min="0" max="100" value="${Math.round(S.snd[k] * 100)}" data-lv="${k}"><button class="sp-p" data-test="${k}">▶</button></div>`).join('')}
     <div class="sp-f"><button data-sp="all">ALL ON</button><button data-sp="none">ALL OFF</button><button data-sp="reset">RESET</button></div>
     <div class="sp-hint">N or Esc to close · ▶ previews one sound · M mutes everything</div>`;
+  recStatus();
   const apply = () => { save(); if (A.ok && !A.paused) { if (step().k === 'end' && S.phase > 0) return; scape(curMix); } };
   $$('[data-tg]', o).forEach((b) => b.onclick = (e) => { e.stopPropagation(); const k = b.dataset.tg; S.snd[k] = S.snd[k] > 0 ? 0 : 1; apply(); sndPanel(true); });
   $$('[data-lv]', o).forEach((r) => r.oninput = () => { const k = r.dataset.lv; S.snd[k] = +r.value / 100; const row = r.closest('.sp-row'); row.classList.toggle('off', S.snd[k] === 0); $('.sp-t', row).textContent = S.snd[k] > 0 ? 'ON' : 'OFF'; apply(); });
@@ -977,8 +1046,8 @@ document.addEventListener('keydown', (e) => {
 function fit() { const s = Math.min(innerWidth / 1920, innerHeight / 1080); $('#stage').style.transform = `translate(-50%,-50%) scale(${s})`; }
 addEventListener('resize', fit); fit();
 $('#c-mute').textContent = S.muted ? 'Unmute (M)' : 'Mute (M)';
-tSet(step().timer || 0); render();
-window.__N = { S: () => S, go, advance, reveal, back, steps: STEPS.length };
+tSet(step().timer || 0); render(); preload(); recStatus();
+window.__N = { S: () => S, go, advance, reveal, back, steps: STEPS.length, rec: () => Object.fromEntries(Object.keys(REC).map((k) => [k, BUF[k] ? 'ok' : RAW[k] ? 'downloaded' : String(BUF[k])])), layers: () => Object.keys(L).map((n) => n + (L[n].rec ? ':rec' : ':synth')) };
 }
 </script>
 </body>
