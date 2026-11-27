@@ -227,7 +227,10 @@ button { font-family:inherit; }
 .m-legend button { background:rgba(8,8,11,.92); border:1px solid var(--line); color:var(--ink); font-size:16px; letter-spacing:.14em; padding:12px 16px; cursor:pointer; display:flex; align-items:center; gap:10px; }
 .m-legend button.on, .m-legend button:hover { border-color:var(--ink); }
 .m-legend i { width:26px; height:6px; display:inline-block; }
-.lg-r { background:var(--red); } .lg-c { background:var(--cy); }
+.lg-r { background:var(--red); } .lg-c { background:var(--cy); } .lg-g { background:#9cf26b; }
+.m-l2 { bottom:106px; }
+.m-info small.g, .m-tip.g { color:#9cf26b; }
+.leaflet-container .m-scene { cursor:pointer; }
 .m-attr { position:absolute; right:8px; bottom:6px; z-index:500; font-size:12px; color:rgba(241,239,233,.55); }
 
 .mapbox .st { cursor:pointer; }
@@ -494,6 +497,9 @@ function train(out) {
   if (Math.random() < .8) trainHorn(out, t + 1 + Math.random() * 2);
 }
 const BUILD = {
+  fridge(ly) { const c = A.ctx; [60, 120, 180].forEach((f, i) => { const o = c.createOscillator(); o.frequency.value = f; const g = c.createGain(); g.gain.value = .06 / (i + 1); o.connect(g).connect(ly.g); o.start(); ly.nodes.push(o); }); },
+  birds(ly) { loop(ly, () => { const c = A.ctx, t = now(); for (let k = 0; k < 3 + (Math.random() * 4 | 0); k++) { const o = c.createOscillator(), g = c.createGain(), f = 2600 + Math.random() * 1800, tt = t + k * .13; o.frequency.setValueAtTime(f, tt); o.frequency.exponentialRampToValueAtTime(f * 1.3, tt + .07); env(g.gain, tt, .01, .05, .03, .04); o.connect(g).connect(ly.g); o.start(tt); o.stop(tt + .15); } }, .6, 2.2); },
+  yell(ly) {},
   traffic(ly) { const c = A.ctx, s = loopSrc(A.brown), lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 380; const g = c.createGain(); g.gain.value = .5; s.connect(lp).connect(g).connect(ly.g); ly.nodes.push(s);
     const lfo = c.createOscillator(); lfo.frequency.value = .07; const lg = c.createGain(); lg.gain.value = .16; lfo.connect(lg).connect(g.gain); lfo.start(); ly.nodes.push(lfo);
     loop(ly, () => carPass(ly.g), .6, 2.2); },
@@ -522,9 +528,12 @@ const REC = {
   plane: ['9/9b/2011-06-05_19-32_Berlin_TXL_Airplane_Flyover_plus_Wingtip_Vortex.ogg', 'Airplane flyover, Berlin Tegel', 'Fritz Schlüter', 'CC BY-SA 3.0'],
   highway: ['5/5c/Highway_from_bridge_center.ogg', 'Highway at night, from a bridge', 'stephan', 'Public domain'],
   bucDogs: ['https://cdn.freesound.org/previews/130/130457_1565498-hq.mp3', 'Stray dogs — a street in Bucharest at night (Freesound #130457)', 'mmiron', 'CC BY 4.0'],
-  bucPark: ['https://cdn.freesound.org/previews/244/244718_2892555-hq.mp3', 'Ducks in a park in Bucharest (Freesound #244718)', 'jlseagull', 'CC0']
+  bucPark: ['https://cdn.freesound.org/previews/244/244718_2892555-hq.mp3', 'Ducks in a park in Bucharest (Freesound #244718)', 'jlseagull', 'CC0'],
+  birds: ['https://cdn.freesound.org/previews/347/347173_2247456-hq.mp3', 'Blackbirds at dawn, Hamburg (Freesound #347173)', 'Kinoton', 'CC0'],
+  fridge: ['https://cdn.freesound.org/previews/753/753296_12863902-hq.mp3', 'Home fridge hum (Freesound #753296)', 'HECKFRICKER', 'CC0'],
+  yell: ['https://cdn.freesound.org/previews/527/527737_6652872-hq.mp3', 'Angry man shouting (Freesound #527737)', 'khenshom', 'CC0']
 };
-const NEED = { traffic: ['street', 'city'], horns: ['horn'], train: ['train'], construction: ['site'], drill: ['drill'], dogs: [['bucDogs', 'dog']], park: ['bucPark'], aircraft: ['plane'], night: ['highway'] };
+const NEED = { traffic: ['street', 'city'], horns: ['horn'], train: ['train'], construction: ['site'], drill: ['drill'], dogs: [['bucDogs', 'dog']], park: ['bucPark'], birds: ['birds'], fridge: ['fridge'], yell: ['yell'], aircraft: ['plane'], night: ['highway'] };
 const RAW = {}, BUF = {};
 const recURL = (k) => (/^https?:/.test(REC[k][0]) ? '' : 'https://upload.wikimedia.org/wikipedia/commons/') + REC[k][0];
 const recReady = (n) => (NEED[n] || []).every((k) => (Array.isArray(k) ? k.some((x) => BUF[x]) : BUF[k]));
@@ -568,6 +577,9 @@ const RECB = {
   drill(ly) { loopRec(ly, 'drill', 1.1, { pan: -.25 }); },
   dogs(ly) { if (BUF.bucDogs) loopRec(ly, 'bucDogs', 1.1, { pan: .4 }); else loopRec(ly, 'dog', .75, { lp: 5000, pan: .45 }); },
   park(ly) { loopRec(ly, 'bucPark', 1.2); },
+  birds(ly) { loopRec(ly, 'birds', 1.3); },
+  fridge(ly) { loopRec(ly, 'fridge', 1.6); },
+  yell(ly) { loopRec(ly, 'yell', 1.3, { lp: 1200, pan: .5 }); },
   aircraft(ly) { loopRec(ly, 'plane', 1); },
   night(ly) { loopRec(ly, 'highway', 1.3, { lp: 650 }); if (BUF.bucDogs) loopRec(ly, 'bucDogs', .7, { lp: 2500, pan: -.3 }); }
 };
@@ -916,19 +928,25 @@ const ROADINFO = {
   'Bulevardul Nicolae Grigorescu': ['Frequent limit exceedances', 'Named by a noise-mapping engineer (Europa Liberă)'],
   'Șoseaua București-Ploiești': ['Noisiest zone in the city (Băneasa)', 'Bucharest’s updated noise action plan, 2025']
 };
-const SHORT = (n) => n.replace('Bulevardul ', 'Bd. ').replace('Șoseaua ', 'Șos. ').replace('Parcul Natural ', '').replace('Parcul ', '') ;
+const SHORT = (n) => n.replace('Bulevardul ', 'Bd. ').replace('Șoseaua ', 'Șos. ').replace('Strada Doctor ', 'Str. Dr. ').replace('Strada ', 'Str. ').replace('Parcul Natural ', '').replace('Parcul ', '') ;
 function decPoly(str) { const pts = []; let i = 0, la = 0, lo = 0; while (i < str.length) { for (let k = 0; k < 2; k++) { let sh = 0, r = 0, b; do { b = str.charCodeAt(i++) - 63; r |= (b & 31) << sh; sh += 5; } while (b >= 32); const d = r & 1 ? ~(r >> 1) : r >> 1; if (k) lo += d; else la += d; } pts.push([la / 1e5, lo / 1e5]); } return pts; }
 let LMAP = null, hearT = 0;
+const SCENES = {
+  birds: { street: 'Strada Doctor Grigore Mora', geo: ['wrknGkgf~CH?dNVH?fJPJ@'], label: 'BIRDS', mix: { birds: 1 }, t: 'Morning birds', p: 'A side street in Dorobanți, a few minutes from Bd. Aviatorilor.', snd: 'Sound scene: blackbirds at dawn' },
+  fridge: { street: 'Strada Doctor Joseph Lister', geo: ['m`enG_~c~CMImFuDcBqA', 'opdnGyqc~CkI}F', '{zdnGwyc~CaD{BOK'], label: 'FRIDGE', mix: { fridge: 1 }, t: 'Just the fridge', p: 'Night, windows closed. The loudest thing left is the kitchen.', snd: 'Sound scene: a fridge humming' },
+  yell: { street: 'Strada Armenească', geo: ['}{enGanj~CWUqAgAMGI?KBWF', '}nfnGq~j~Cm@Cc@CqBMY@}@Zm@Rc@Pq@G', 'acfnGmxj~CgD}AsB_AeA_@YE', 'c|fnGm|j~Cs@?gBB'], label: 'NEIGHBOUR', mix: { yell: 1, fridge: .35 }, t: '…then the neighbour', p: 'A quiet street can still be loud indoors. Noise isn’t only traffic.', snd: 'Sound scene: shouting through the wall' }
+};
 const RDIR = { 'Bulevardul Unirii': 'top', 'Bulevardul Națiunile Unite': 'left', 'Bulevardul Tineretului': 'right', 'Bulevardul Iuliu Maniu': 'top', 'Bulevardul Constantin Brâncoveanu': 'right' };
 const PDIR = { 'Parcul Carol': 'left', 'Parcul Tineretului': 'bottom', 'Parcul Natural Văcărești': 'right' };
 function hear(kind, name) {
   if (!aInit()) return toast('Audio not available — the map still works');
-  const back = { ...curMix };
-  scape(kind === 'quiet' ? { park: 1, traffic: .04 } : { traffic: 1.1, horns: .7, dogs: .15 });
+  const back = { ...curMix }, sc = SCENES[kind];
+  scape(sc ? sc.mix : kind === 'quiet' ? { park: 1, traffic: .04 } : { traffic: 1.1, horns: .7, dogs: .15 });
   clearTimeout(hearT); hearT = setTimeout(() => { scape(back); $$('.m-legend button').forEach((b) => b.classList.remove('on')); }, 7000);
   $$('.m-legend button').forEach((b) => b.classList.toggle('on', b.dataset.hear === kind));
   const info = $('#minfo'); if (!info) return;
-  if (kind === 'quiet') info.innerHTML = `<small class="c">QUIET ZONE · ${esc(name || 'Parcul Tineretului')}</small><b>Official quiet zone</b><p>Listed as a quiet zone in Bucharest’s noise action plan.</p><span class="snd">♪ Recorded in a park in Bucharest</span>`;
+  if (sc) info.innerHTML = `<small class="g">QUIET STREET · ${esc(SHORT(sc.street))}</small><b>${esc(sc.t)}</b><p>${esc(sc.p)}</p><span class="snd">♪ ${esc(sc.snd)} — an illustration, not recorded on this street</span>`;
+  else if (kind === 'quiet') info.innerHTML = `<small class="c">QUIET ZONE · ${esc(name || 'Parcul Tineretului')}</small><b>Official quiet zone</b><p>Listed as a quiet zone in Bucharest’s noise action plan.</p><span class="snd">♪ Recorded in a park in Bucharest</span>`;
   else { const n = name || 'Bulevardul Unirii', f = ROADINFO[n] || ['', '']; info.innerHTML = `<small>LOUD · ${esc(SHORT(n))}</small><b>${esc(f[0])}</b><p>${esc(f[1])}.</p><span class="snd">♪ City traffic recording — not recorded on this street</span>`; }
 }
 function mapFX(rv) {
@@ -950,12 +968,17 @@ function mapFX(rv) {
     const dir = RDIR[n] || 'right', off = { right: [12, 0], left: [-12, 0], top: [0, -12], bottom: [0, 12] }[dir];
     LF.tooltip({ permanent: true, direction: dir, offset: off, className: 'm-tip' }).setLatLng(mid).setContent(SHORT(n)).addTo(LMAP); });
   LMAP.fitBounds(LF.latLngBounds(all), { paddingTopLeft: [40, 30], paddingBottomRight: [40, 70] });
+  Object.entries(SCENES).forEach(([k, sc]) => { let mid = null;
+    sc.geo.forEach((g) => { const pts = decPoly(g); if (!mid) mid = pts[Math.floor(pts.length / 2)];
+      LF.polyline(pts, { color: '#9cf26b', weight: 6, opacity: .95, lineCap: 'round' }).on('click', () => hear(k)).addTo(LMAP); });
+    LF.circleMarker(mid, { radius: 11, color: '#9cf26b', weight: 3, fillColor: '#9cf26b', fillOpacity: .35, className: 'm-scene' }).on('click', () => hear(k)).addTo(LMAP)
+      .bindTooltip(sc.label, { permanent: true, direction: k === 'fridge' ? 'left' : 'right', offset: k === 'fridge' ? [-12, 0] : [12, 0], className: 'm-tip g' }); });
   $$('[data-hear]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); hear(b.dataset.hear); });
 }
 function mapHTML(rv, A2) {
   return `<div class="pg map ${rv ? 'rv' : ''}">
     <div class="lbl">04 · <b>Bucharest: the noise map</b></div>
-    <div class="mapbox ${A2}">${window.L && window.L.map ? `<div id="lmap"></div><div class="m-info" id="minfo"><small>CLICK A STREET OR A PARK</small><b>Red = loud. Cyan = quiet.</b><p>Every red line is a boulevard named in Bucharest’s own noise plans. The cyan areas are the city’s official quiet zones.</p></div><div class="m-legend"><button data-hear="loud"><i class="lg-r"></i>▶ HEAR A BOULEVARD</button><button data-hear="quiet"><i class="lg-c"></i>▶ HEAR A QUIET ZONE</button></div><div class="m-attr">Basemap © Esri, HERE, Garmin, © OpenStreetMap contributors · streets & parks: OpenStreetMap</div>` : mapSVG()}</div>
+    <div class="mapbox ${A2}">${window.L && window.L.map ? `<div id="lmap"></div><div class="m-info" id="minfo"><small>CLICK A STREET OR A PARK</small><b>Red = loud. Cyan & green = quiet.</b><p>Red: boulevards named in Bucharest’s own noise plans. Cyan: the official quiet zones. Green: quiet side streets — click them for a sound scene.</p></div><div class="m-legend"><button data-hear="loud"><i class="lg-r"></i>▶ HEAR A BOULEVARD</button><button data-hear="quiet"><i class="lg-c"></i>▶ HEAR A QUIET ZONE</button></div><div class="m-legend m-l2"><button data-hear="birds"><i class="lg-g"></i>BIRDS</button><button data-hear="fridge"><i class="lg-g"></i>FRIDGE</button><button data-hear="yell"><i class="lg-g"></i>NEIGHBOUR</button></div><div class="m-attr">Basemap © Esri, HERE, Garmin, © OpenStreetMap contributors · streets & parks: OpenStreetMap</div>` : mapSVG()}</div>
     <div class="stats">
       <div class="stat"><b>228</b><p>zones over the legal limits — 70 dB by day, 60 dB at night</p><small>Bucharest noise action plan (2017), as summarised by the World Bank, 2019</small></div>
       <div class="stat"><b>59</b><p>streets over the night-time limit</p><small>Bucharest City Hall, 2022</small></div>
