@@ -6,6 +6,8 @@
 <title>Sound On / Romania Off? — Noise Pollution in Romania</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Instrument+Serif:ital@0;1&family=Unbounded:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
 /* SOUND ON / ROMANIA OFF? — a 5-minute live audiovisual story about noise pollution in Romania
@@ -210,6 +212,26 @@ button { font-family:inherit; }
 .map .lbl { position:absolute; left:120px; top:120px; }
 .mapbox { position:absolute; left:50px; top:160px; width:1140px; height:860px; }
 .mapbox svg { width:100%; height:100%; overflow:visible; }
+#lmap { position:absolute; inset:0; background:#0d0d10; border:1px solid var(--line); }
+#lmap .leaflet-tile-pane { filter:saturate(.2) brightness(.9) contrast(1.1); }
+.m-tip { background:rgba(8,8,11,.85); border:0; border-radius:0; box-shadow:none; color:#f1efe9; font-family:var(--f-mono); font-size:15px; padding:3px 7px; letter-spacing:.02em; }
+.m-tip.c { color:#39e5d0; background:rgba(8,8,11,.6); }
+.m-tip::before { display:none; }
+.leaflet-container .m-road, .leaflet-container .m-hit, .leaflet-container .m-park { cursor:pointer; }
+.m-glow { animation:pulse 2.4s ease-in-out infinite; }
+.m-info { position:absolute; left:20px; top:20px; z-index:500; width:440px; background:rgba(8,8,11,.92); border-left:4px solid var(--red); padding:18px 22px; }
+.m-info small { display:block; font-size:14px; letter-spacing:.18em; color:var(--red); }
+.m-info small.c { color:var(--cy); }
+.m-info b { display:block; margin-top:6px; font-family:var(--f-sig); font-size:30px; line-height:1.1; }
+.m-info p { margin:8px 0 0; font-size:18px; line-height:1.4; color:var(--dim); }
+.m-info .snd { display:block; margin-top:10px; font-size:15px; color:var(--amb); }
+.m-legend { position:absolute; left:20px; bottom:46px; z-index:500; display:flex; gap:10px; }
+.m-legend button { background:rgba(8,8,11,.92); border:1px solid var(--line); color:var(--ink); font-size:16px; letter-spacing:.14em; padding:12px 16px; cursor:pointer; display:flex; align-items:center; gap:10px; }
+.m-legend button.on, .m-legend button:hover { border-color:var(--ink); }
+.m-legend i { width:26px; height:6px; display:inline-block; }
+.lg-r { background:var(--red); } .lg-c { background:var(--cy); }
+.m-attr { position:absolute; right:8px; bottom:6px; z-index:500; font-size:12px; color:rgba(241,239,233,.55); }
+
 .mapbox .st { cursor:pointer; }
 .mapbox .st .glow { stroke:var(--red); stroke-width:16; opacity:.25; filter:blur(6px); animation:pulse 2.4s ease-in-out infinite; }
 .mapbox .st .core { stroke:var(--red); stroke-width:5; stroke-linecap:round; }
@@ -500,12 +522,14 @@ const REC = {
   drill: ['0/0c/Drilling_next_door_1.ogg', 'Drilling next door', 'ezwa', 'Public domain'],
   dog: ['b/be/Dog_barking.webm', 'Dog barking', 'Dr. Nono YesMaybe', 'CC BY-SA 4.0'],
   plane: ['9/9b/2011-06-05_19-32_Berlin_TXL_Airplane_Flyover_plus_Wingtip_Vortex.ogg', 'Airplane flyover, Berlin Tegel', 'Fritz Schlüter', 'CC BY-SA 3.0'],
-  highway: ['5/5c/Highway_from_bridge_center.ogg', 'Highway at night, from a bridge', 'stephan', 'Public domain']
+  highway: ['5/5c/Highway_from_bridge_center.ogg', 'Highway at night, from a bridge', 'stephan', 'Public domain'],
+  bucDogs: ['https://cdn.freesound.org/previews/130/130457_1565498-hq.mp3', 'Stray dogs — a street in Bucharest at night (Freesound #130457)', 'mmiron', 'CC BY 4.0'],
+  bucPark: ['https://cdn.freesound.org/previews/244/244718_2892555-hq.mp3', 'Ducks in a park in Bucharest (Freesound #244718)', 'jlseagull', 'CC0']
 };
-const NEED = { traffic: ['street', 'city'], horns: ['horn'], train: ['train'], construction: ['site'], drill: ['drill'], dogs: ['dog'], aircraft: ['plane'], night: ['highway'] };
+const NEED = { traffic: ['street', 'city'], horns: ['horn'], train: ['train'], construction: ['site'], drill: ['drill'], dogs: [['bucDogs', 'dog']], park: ['bucPark'], aircraft: ['plane'], night: ['highway'] };
 const RAW = {}, BUF = {};
-const recURL = (k) => 'https://upload.wikimedia.org/wikipedia/commons/' + REC[k][0];
-const recReady = (n) => (NEED[n] || []).every((k) => BUF[k]);
+const recURL = (k) => (/^https?:/.test(REC[k][0]) ? '' : 'https://upload.wikimedia.org/wikipedia/commons/') + REC[k][0];
+const recReady = (n) => (NEED[n] || []).every((k) => (Array.isArray(k) ? k.some((x) => BUF[x]) : BUF[k]));
 const recCount = () => Object.keys(REC).filter((k) => BUF[k] || RAW[k]).length;
 async function preload() {
   let cache = null; try { cache = await caches.open('noise-recordings-v1'); } catch (e) {}
@@ -544,9 +568,10 @@ const RECB = {
   train(ly) { loopRec(ly, 'train', 1.4); if (BUF.trainhorn) loop(ly, () => shotRec(ly.g, 'trainhorn', .3, { off: Math.random() * 16, dur: 2.6 }), 12, 22); },
   construction(ly) { loopRec(ly, 'site', .9, { pan: .2 }); },
   drill(ly) { loopRec(ly, 'drill', 1.1, { pan: -.25 }); },
-  dogs(ly) { loopRec(ly, 'dog', .75, { lp: 5000, pan: .45 }); },
+  dogs(ly) { if (BUF.bucDogs) loopRec(ly, 'bucDogs', 1.1, { pan: .4 }); else loopRec(ly, 'dog', .75, { lp: 5000, pan: .45 }); },
+  park(ly) { loopRec(ly, 'bucPark', 1.2); },
   aircraft(ly) { loopRec(ly, 'plane', 1); },
-  night(ly) { loopRec(ly, 'highway', 1.5, { lp: 650 }); }
+  night(ly) { loopRec(ly, 'highway', 1.3, { lp: 650 }); if (BUF.bucDogs) loopRec(ly, 'bucDogs', .7, { lp: 2500, pan: -.3 }); }
 };
 function startLayer(n) { if (L[n]) return L[n]; const g = A.ctx.createGain(); g.gain.value = .0001; g.connect(A.scene); const ly = { g, alive: true, timers: [], nodes: [], rec: false }; L[n] = ly; try { if (recReady(n) && RECB[n]) { RECB[n](ly); ly.rec = true; } else BUILD[n](ly); } catch (e) { try { BUILD[n](ly); } catch (e2) {} } return ly; }
 function stopLayer(n) { const ly = L[n]; if (!ly) return; delete L[n]; ly.alive = false; ly.timers.forEach(clearTimeout); const t = now(); ly.g.gain.cancelScheduledValues(t); ly.g.gain.setTargetAtTime(.0001, t, .25); setTimeout(() => { ly.nodes.forEach((x) => { try { x.stop && x.stop(); } catch (e) {} try { x.disconnect(); } catch (e) {} }); try { ly.g.disconnect(); } catch (e) {} }, 1600); }
@@ -579,7 +604,7 @@ const STEPS = [
   { sec: 'src', k: 'mixer', mood: .7, mix: { traffic: .22 } },
   { sec: 'ppl', k: 'people', phases: 2, timer: 10, mood: .55, mix: { traffic: .35, horns: .22 } },
   { sec: 'ppl', k: 'crowd', phases: 2, mood: .45, mix: { traffic: .25 } },
-  { sec: 'map', k: 'map', phases: 2, mood: .7, mix: { traffic: .45, train: .35, horns: .2, dogs: .3 }, mix1: { night: 1, dogs: .25 } },
+  { sec: 'map', k: 'map', phases: 2, mood: .7, mix: { traffic: .45, train: .35, horns: .2, dogs: .3 }, mix1: { night: 1 } },
   { sec: 'gal', k: 'galati', phases: 2, timer: 10, mood: .28, mix: { traffic: .1 } },
   { sec: 'end', k: 'end', phases: 3, mood: 1, mix: { traffic: 1, horns: 1, train: 1, construction: .9, dogs: .8, drill: .9 } }
 ];
@@ -594,6 +619,7 @@ const SOURCES = [
   ['Europa Liberă România — “Poluarea care nu se vede, dar se aude”', 'Noise-mapping engineer B. Lazarovici names Bd. Iuliu Maniu and Bd. Nicolae Grigorescu as boulevards with frequent exceedances.', 'https://romania.europalibera.org/a/32120072.html'],
   ['Bucharest noise map by address (summary of the city’s 2023 strategic noise map and action plan)', 'Action-plan thresholds for large streets: 70 dB (24 h) and 60 dB (night). Quiet zones: Văcărești Natural Park, Carol I Park, Tineretului Park.', 'https://mariuscomper.uk/harta-zgomotului-bucuresti/en/'],
   ['European Environment Agency — exposure of Europe’s population to noise; WHO guideline values', 'Road traffic is the primary source of noise across Europe. WHO recommends road traffic below 53 dB Lden and 45 dB at night.', 'https://www.eea.europa.eu/ims/exposure-of-europe-population-to-noise'],
+  ['OpenStreetMap contributors (ODbL) · basemap © CARTO', 'Street and park shapes on the Bucharest map; red lines = boulevards named in the sources above, cyan = the quiet zones listed in the action plan.', 'https://www.openstreetmap.org/copyright'],
   ['European Environment Agency — Romania noise fact sheet 2022', 'Official Romanian data reported under the Environmental Noise Directive (rounds 2012, 2017, 2022).', 'https://www.eea.europa.eu/en/analysis/maps-and-charts/romania-noise-fact-sheet-2022'],
   ['Euronews România (2025) — Bucharest noise monitoring', 'Bucharest City Hall announced noise monitoring through 30 measuring stations as part of its new noise plan.', 'https://www.euronews.ro/articole/nivelul-de-zgomot-din-bucuresti-monitorizat-prin-30-de-statii-de-masurare-anuntul'],
   ['Romania Insider / Spotmedia (June 2026) — Happy City Index 2026', 'Bucharest placed 247th of 251 cities. A quality-of-life index (governance, economy, environment, mobility, health, satisfaction) — not a noise ranking.', 'https://www.romania-insider.com/bucharest-unhappy-cities-world-study-june-2026']
@@ -715,6 +741,7 @@ function render() {
   $('#screen').innerHTML = H(rv, A2, S.phase);
   bind(); tDraw(); hud(); setMood(); first = false; recStatus();
   if (st.k === 'crowd') crowdFX(rv);
+  if (st.k === 'map') mapFX(rv); else if (LMAP) { try { LMAP.remove(); } catch (e) {} LMAP = null; }
   if (st.k === 'end' && S.phase === 1) requestAnimationFrame(() => requestAnimationFrame(() => { const e = $('.end'); if (e) e.classList.add('down'); }));
 }
 function bind() {
@@ -876,10 +903,58 @@ function mapSVG() {
     <text class="note" x="20" y="755">SCHEMATIC, NOT TO SCALE · STREETS AND QUIET ZONES NAMED IN BUCHAREST’S NOISE PLANS · DOTTED = NIGHT LIMIT · CLICK A STREET</text>
   </svg>`;
 }
+
+/* ---------- real map: OpenStreetMap geometry on a dark basemap ---------- */
+const GEO = {"roads": {"Bulevardul Unirii": ["cddnGedg~CfIm_F", "w|cnGeen~C^bBm@n`@qDxxBu@vBj@jBqBfz@"], "Bulevardul Aviatorilor": ["ovknGk}e~CzAk@~_@bA", "srjnGu}e~Csb@}A", "wnjnG_}e~Cld@@", "qsknGqaf~C~a@hAdf@H", "u|knG}bf~Cif@oH", "wdmnGekf~Cl@tBpAb@Uk@", "kzknGw`f~Cs\\gE", "a}knGo`f~CnAbA", "ysknGm|e~Cpb@n@", "i}knG_~e~Cmb@kG@y@"], "Bulevardul Națiunile Unite": ["owdnGooe~CkA}HhCq|@", "{ydnGmye~C|@pI"], "Bulevardul Constantin Brâncoveanu": ["}p~mGslj~C|EcCjwBq@xIyAyIz@g|Bb@", "wc~mG{pj~CKrB", "o{{mGipj~Ct]Q`Cb@", "yxzmGcqj~CbLG", "yy{mGswj~CTt@lEE", "i||mG_rj~C?X"], "Bulevardul Tineretului": ["uranGqqi~C~IgIpKs\\vFmMzAqIz@eW", "yqanG{ri~Ci@R", "qp`nGgll~Cb@dF"], "Șoseaua București-Ploiești": ["ycnnG{kc~CuCSi^mR}^wNkRmAkVNqLiBdMpA`QS`Ib@", "a`rnG}td~Cip@uLsLqAeEHsq@fS{o@|j@mFtCai@bOeb@E", "u{ynGeob~Cn`@Bfi@aOrGyDro@oj@zs@wRhOpA`|@jOhXE`RnAbQnGvo@d]", "e`rnG}sd~CjMvBtY_@", "gbxnGcxb~ChClS", "iaxnGo`b~CyBqU"], "Bulevardul Ferdinand I": ["ukhnGglp~ClBbBx|@|iC", "spgnGeun~CdDcC", "uwgnGgco~Cl@]FnD", "ivgnGe`o~Ch^vfA", "qkfnG__l~CRt@"], "Bulevardul Nicolae Grigorescu": ["am`nGieu~C{J|BhFoBhDInUdI~@oH", "chenGcqt~CHl@", "{x`nGmbu~C}JfAgXaIkMWc_A`Oqg@rM", "quenGwjt~Cdh@wMr~@cOnMTfXbI`KqA", "yp_nGebu~CaArGr[dJ", "cm`nGqdu~Cdn@nTtErC", "{r_nGqyt~C}Am@"], "Bulevardul 1 Decembrie 1918": ["e~`nGuzv~C_WeFoJoJsDyAwGE_JlDiE@a\\aWeFpA_Nx^uYbH{MgD", "kuanGqaw~CJj@rUxE", "cqanGa_w~CR]", "i~enG_|v~CrIrClCNzY_HtMg^bFoAv[pVxEFnIgDnHDzClApK`K"], "Bulevardul Iuliu Maniu": ["qzenGayo}CzKewC_DwcK", "qsenGqw`~CbDheKwKfwC"]}, "parks": {"Parcul Carol": ["ojbnGeug~CBoAcAeBbAi@Tp@rBcAhQcMTwLK~ElEzIx@}@|NWvErFmCJx@dG_@zB_L`AyAdC`A~EwFzCeBoDgGoBsB`CsC{AyJWgB_DxBQ`AyB"], "Parcul Tineretului": ["oj_nGeti~Cn@_HbFxB]jB`FxBtF_Vw@mFmDwCeBn@iA_G{Ad@qCeI{@lAmC}EjD}BtAeCZ}Cn@k@MmMhB}Dse@s@LdCsBzAgAkFoAn\\{AvHwFrLqJp[sBhD{EzCAjBfKvRrEkEfL`Rt@y@`At@rE{@hRiNdFgJ^}G"], "Parcul Natural Văcărești": ["sc`nGgtm~CeAmACaCfWkzAfC}Ahh@mBhCj@bArD\\jMbHbKbFpKgGh[uCfC_ApCi@pNiAxFgA`@uLQ_K{@gUbCkUaD"]}};
+const ROADINFO = {
+  'Bulevardul Unirii': ['Over 70 dB by day', 'Named in Bucharest’s 2017 noise action plan'],
+  'Bulevardul Tineretului': ['Over 70 dB by day', 'Named in Bucharest’s 2017 noise action plan'],
+  'Bulevardul Națiunile Unite': ['Over 70 dB by day', 'Named in Bucharest’s 2017 noise action plan'],
+  'Bulevardul Constantin Brâncoveanu': ['Over 70 dB by day', 'Named in Bucharest’s 2017 noise action plan'],
+  'Bulevardul Aviatorilor': ['Over 70 dB by day', 'Named in Bucharest’s 2017 noise action plan'],
+  'Bulevardul 1 Decembrie 1918': ['Over the 60 dB night limit', 'Named in Bucharest’s 2017 noise action plan'],
+  'Bulevardul Ferdinand I': ['Over the 60 dB night limit', 'Named in Bucharest’s 2017 noise action plan'],
+  'Bulevardul Iuliu Maniu': ['Frequent limit exceedances', 'Named by a noise-mapping engineer (Europa Liberă)'],
+  'Bulevardul Nicolae Grigorescu': ['Frequent limit exceedances', 'Named by a noise-mapping engineer (Europa Liberă)'],
+  'Șoseaua București-Ploiești': ['Noisiest zone in the city (Băneasa)', 'Bucharest’s updated noise action plan, 2025']
+};
+const SHORT = (n) => n.replace('Bulevardul ', 'Bd. ').replace('Șoseaua ', 'Șos. ').replace('Parcul Natural ', '').replace('Parcul ', '') ;
+function decPoly(str) { const pts = []; let i = 0, la = 0, lo = 0; while (i < str.length) { for (let k = 0; k < 2; k++) { let sh = 0, r = 0, b; do { b = str.charCodeAt(i++) - 63; r |= (b & 31) << sh; sh += 5; } while (b >= 32); const d = r & 1 ? ~(r >> 1) : r >> 1; if (k) lo += d; else la += d; } pts.push([la / 1e5, lo / 1e5]); } return pts; }
+let LMAP = null, hearT = 0;
+function hear(kind, name) {
+  if (!aInit()) return toast('Audio not available — the map still works');
+  const back = { ...curMix };
+  scape(kind === 'quiet' ? { park: 1, traffic: .04 } : { traffic: 1.1, horns: .7, dogs: .15 });
+  clearTimeout(hearT); hearT = setTimeout(() => { scape(back); $$('.m-legend button').forEach((b) => b.classList.remove('on')); }, 7000);
+  $$('.m-legend button').forEach((b) => b.classList.toggle('on', b.dataset.hear === kind));
+  const info = $('#minfo'); if (!info) return;
+  if (kind === 'quiet') info.innerHTML = `<small class="c">QUIET ZONE · ${esc(name || 'Parcul Tineretului')}</small><b>Official quiet zone</b><p>Listed as a quiet zone in Bucharest’s noise action plan.</p><span class="snd">♪ Recorded in a park in Bucharest</span>`;
+  else { const n = name || 'Bulevardul Unirii', f = ROADINFO[n] || ['', '']; info.innerHTML = `<small>LOUD · ${esc(SHORT(n))}</small><b>${esc(f[0])}</b><p>${esc(f[1])}.</p><span class="snd">♪ City traffic recording — not recorded on this street</span>`; }
+}
+function mapFX(rv) {
+  const el = $('#lmap'); if (!el || !window.L || !window.L.map) return;
+  if (LMAP) { try { LMAP.remove(); } catch (e) {} LMAP = null; }
+  const LF = window.L;
+  LMAP = LF.map(el, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false, zoomSnap: .25 });
+  LF.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19, crossOrigin: true }).addTo(LMAP);
+  const all = [];
+  Object.entries(GEO.parks).forEach(([n, rings]) => rings.forEach((r) => { const pts = decPoly(r); all.push(...pts);
+    LF.polygon(pts, { color: '#39e5d0', weight: 2, dashArray: '4 6', fillColor: '#39e5d0', fillOpacity: .22, className: 'm-park' }).on('click', () => hear('quiet', n)).addTo(LMAP)
+      .bindTooltip(SHORT(n), { permanent: true, direction: 'center', className: 'm-tip c' }); }));
+  Object.entries(GEO.roads).forEach(([n, chains]) => { let longest = null;
+    chains.forEach((c) => { const pts = decPoly(c); all.push(...pts); if (!longest || pts.length > longest.length) longest = pts;
+      LF.polyline(pts, { color: '#ff3a2e', weight: 16, opacity: .22, className: 'm-glow', interactive: false }).addTo(LMAP);
+      LF.polyline(pts, { color: '#ff3a2e', weight: 5, opacity: .95, lineCap: 'round', className: 'm-road' }).on('click', () => hear('loud', n)).addTo(LMAP);
+      LF.polyline(pts, { color: '#000', weight: 26, opacity: 0, className: 'm-hit' }).on('click', () => hear('loud', n)).addTo(LMAP); });
+    const mid = longest[Math.floor(longest.length / 2)];
+    LF.tooltip({ permanent: true, direction: 'right', offset: [10, 0], className: 'm-tip' }).setLatLng(mid).setContent(SHORT(n)).addTo(LMAP); });
+  LMAP.fitBounds(LF.latLngBounds(all), { padding: [40, 40] });
+  $$('[data-hear]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); hear(b.dataset.hear); });
+}
 function mapHTML(rv, A2) {
   return `<div class="pg map ${rv ? 'rv' : ''}">
     <div class="lbl">04 · <b>Bucharest: the noise map</b></div>
-    <div class="mapbox ${A2}">${mapSVG()}</div>
+    <div class="mapbox ${A2}">${window.L && window.L.map ? `<div id="lmap"></div><div class="m-info" id="minfo"><small>CLICK A STREET OR A PARK</small><b>Red = loud. Cyan = quiet.</b><p>Every red line is a boulevard named in Bucharest’s own noise plans. The cyan areas are the city’s official quiet zones.</p></div><div class="m-legend"><button data-hear="loud"><i class="lg-r"></i>▶ HEAR A BOULEVARD</button><button data-hear="quiet"><i class="lg-c"></i>▶ HEAR A QUIET ZONE</button></div><div class="m-attr">© OpenStreetMap contributors © CARTO · streets & parks from OpenStreetMap</div>` : mapSVG()}</div>
     <div class="stats">
       <div class="stat"><b>228</b><p>zones over the legal limits — 70 dB by day, 60 dB at night</p><small>Bucharest noise action plan (2017), as summarised by the World Bank, 2019</small></div>
       <div class="stat"><b>59</b><p>streets over the night-time limit</p><small>Bucharest City Hall, 2022</small></div>
