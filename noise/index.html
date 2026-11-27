@@ -212,7 +212,7 @@ button { font-family:inherit; }
 .mapbox > svg { width:100%; height:100%; overflow:visible; }
 #lmap { position:absolute; inset:0; background:#0d0d10; border:1px solid var(--line); }
 #lmap .leaflet-tile-pane { filter:brightness(1.25) contrast(1.05); }
-.m-tip { background:rgba(8,8,11,.85); border:0; border-radius:0; box-shadow:none; color:#f1efe9; font-family:var(--f-mono); font-size:15px; padding:3px 7px; letter-spacing:.02em; }
+.m-tip { background:rgba(8,8,11,.85); border:0; border-radius:0; box-shadow:none; color:#f1efe9; font-family:var(--f-mono); font-size:14px; padding:2px 6px; letter-spacing:.02em; }
 .m-tip.c { color:#39e5d0; background:rgba(8,8,11,.6); }
 .m-tip::before { display:none; }
 .leaflet-container .m-road, .leaflet-container .m-hit, .leaflet-container .m-park { cursor:pointer; }
@@ -919,6 +919,8 @@ const ROADINFO = {
 const SHORT = (n) => n.replace('Bulevardul ', 'Bd. ').replace('Șoseaua ', 'Șos. ').replace('Parcul Natural ', '').replace('Parcul ', '') ;
 function decPoly(str) { const pts = []; let i = 0, la = 0, lo = 0; while (i < str.length) { for (let k = 0; k < 2; k++) { let sh = 0, r = 0, b; do { b = str.charCodeAt(i++) - 63; r |= (b & 31) << sh; sh += 5; } while (b >= 32); const d = r & 1 ? ~(r >> 1) : r >> 1; if (k) lo += d; else la += d; } pts.push([la / 1e5, lo / 1e5]); } return pts; }
 let LMAP = null, hearT = 0;
+const RDIR = { 'Bulevardul Unirii': 'top', 'Bulevardul Națiunile Unite': 'left', 'Bulevardul Tineretului': 'right', 'Bulevardul Iuliu Maniu': 'top', 'Bulevardul Constantin Brâncoveanu': 'right' };
+const PDIR = { 'Parcul Carol': 'left', 'Parcul Tineretului': 'bottom', 'Parcul Natural Văcărești': 'right' };
 function hear(kind, name) {
   if (!aInit()) return toast('Audio not available — the map still works');
   const back = { ...curMix };
@@ -937,16 +939,17 @@ function mapFX(rv) {
   LF.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16 }).addTo(LMAP);
   const all = [];
   Object.entries(GEO.parks).forEach(([n, rings]) => rings.forEach((r) => { const pts = decPoly(r); all.push(...pts);
-    LF.polygon(pts, { color: '#39e5d0', weight: 2, dashArray: '4 6', fillColor: '#39e5d0', fillOpacity: .22, className: 'm-park' }).on('click', () => hear('quiet', n)).addTo(LMAP)
-      .bindTooltip(SHORT(n), { permanent: true, direction: 'center', className: 'm-tip c' }); }));
+    LF.polygon(pts, { color: '#39e5d0', weight: 3, fillColor: '#39e5d0', fillOpacity: .4, className: 'm-park' }).on('click', () => hear('quiet', n)).addTo(LMAP)
+      .bindTooltip(SHORT(n), { permanent: true, direction: PDIR[n] || 'center', offset: PDIR[n] === 'left' ? [-14, 0] : PDIR[n] === 'right' ? [14, 0] : [0, 12], className: 'm-tip c' }); }));
   Object.entries(GEO.roads).forEach(([n, chains]) => { let longest = null;
     chains.forEach((c) => { const pts = decPoly(c); all.push(...pts); if (!longest || pts.length > longest.length) longest = pts;
       LF.polyline(pts, { color: '#ff3a2e', weight: 16, opacity: .22, className: 'm-glow', interactive: false }).addTo(LMAP);
       LF.polyline(pts, { color: '#ff3a2e', weight: 5, opacity: .95, lineCap: 'round', className: 'm-road' }).on('click', () => hear('loud', n)).addTo(LMAP);
       LF.polyline(pts, { color: '#000', weight: 26, opacity: 0, className: 'm-hit' }).on('click', () => hear('loud', n)).addTo(LMAP); });
     const mid = longest[Math.floor(longest.length / 2)];
-    LF.tooltip({ permanent: true, direction: 'right', offset: [10, 0], className: 'm-tip' }).setLatLng(mid).setContent(SHORT(n)).addTo(LMAP); });
-  LMAP.fitBounds(LF.latLngBounds(all), { padding: [40, 40] });
+    const dir = RDIR[n] || 'right', off = { right: [12, 0], left: [-12, 0], top: [0, -12], bottom: [0, 12] }[dir];
+    LF.tooltip({ permanent: true, direction: dir, offset: off, className: 'm-tip' }).setLatLng(mid).setContent(SHORT(n)).addTo(LMAP); });
+  LMAP.fitBounds(LF.latLngBounds(all), { paddingTopLeft: [40, 30], paddingBottomRight: [40, 70] });
   $$('[data-hear]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); hear(b.dataset.hear); });
 }
 function mapHTML(rv, A2) {
